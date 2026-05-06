@@ -1,0 +1,81 @@
+name: ${COMPOSE_PROJECT_NAME:-digital-twin-v2g}
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - digital-twin-net
+
+  # Luu y: Tat ca service Ditto phai cung 1 version de tranh lech Akka/Pekko runtime.
+  ditto-policies:
+    image: eclipse/ditto-policies:${DITTO_VERSION:-3.5.0}
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    environment:
+      BIND_HOSTNAME: 0.0.0.0
+      MONGO_DB_HOSTNAME: mongodb
+      DITTO_DEVOPS_PASSWORD: ${DITTO_DEVOPS_PASSWORD:-ditto}
+    networks:
+      digital-twin-net:
+        aliases:
+          - ditto-cluster
+
+  ditto-things:
+    image: eclipse/ditto-things:${DITTO_VERSION:-3.5.0}
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    environment:
+      BIND_HOSTNAME: 0.0.0.0
+      MONGO_DB_HOSTNAME: mongodb
+      DITTO_DEVOPS_PASSWORD: ${DITTO_DEVOPS_PASSWORD:-ditto}
+    networks:
+      digital-twin-net:
+        aliases:
+          - ditto-cluster
+
+  ditto-things-search:
+    image: eclipse/ditto-things-search:${DITTO_VERSION:-3.5.0}
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+      - ditto-things
+    environment:
+      BIND_HOSTNAME: 0.0.0.0
+      MONGO_DB_HOSTNAME: mongodb
+      DITTO_DEVOPS_PASSWORD: ${DITTO_DEVOPS_PASSWORD:-ditto}
+    networks:
+      digital-twin-net:
+        aliases:
+          - ditto-cluster
+
+  ditto-gateway:
+    image: eclipse/ditto-gateway:${DITTO_VERSION:-3.5.0}
+    restart: unless-stopped
+    depends_on:
+      - ditto-policies
+      - ditto-things
+      - ditto-things-search
+    ports:
+      - "${DITTO_HTTP_PORT:-8080}:8080"
+    environment:
+      BIND_HOSTNAME: 0.0.0.0
+      ENABLE_PRE_AUTHENTICATION: "true"
+      DITTO_DEVOPS_PASSWORD: ${DITTO_DEVOPS_PASSWORD:-ditto}
+    networks:
+      digital-twin-net:
+        aliases:
+          - ditto-cluster
+
+volumes:
+  mongodb_data:
+
+networks:
+  digital-twin-net:
+    driver: bridge

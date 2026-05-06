@@ -1,0 +1,14 @@
+from datetime import datetime, timezone
+
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/health", tags=["health"])
+
+
+@router.get("")
+async def health_check():
+  return {
+    "status": "ok",
+    "service": "ecotwin-backend",
+    "timestamp": datetime.now(timezone.utc).isoformat(),
+  }
