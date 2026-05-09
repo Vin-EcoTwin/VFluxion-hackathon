@@ -1,0 +1,19 @@
+name: ${COMPOSE_PROJECT_NAME:-digital-twin-v2g}
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - digital-twin-net
+
+volumes:
+  mongodb_data:
+
+networks:
+  digital-twin-net:
+    driver: bridge

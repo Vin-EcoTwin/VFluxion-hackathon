@@ -1,54 +1,48 @@
-# Frontend - Digital Twin V2G
+# Frontend - EcoTwin Digital Twin
 
-Frontend su dung Next.js 15 App Router, TypeScript strict, Tailwind CSS, Tremor, CesiumJS, deck.gl.
+Frontend sử dụng Next.js 15 App Router, TypeScript strict, Tailwind CSS, Tremor, CesiumJS và deck.gl.
 
-## Muc tieu
+## Mục tiêu giao diện
 
-- 3D map interactive (Cesium base globe + terrain + building context).
-- Dynamic layers (deck.gl): EV, power lines, heatmap.
-- Dashboard cyberpunk cho KPI, load, simulation state.
-- Realtime stream voi backend qua WebSocket.
+- Bản đồ 3D tương tác với lớp nền Cesium và các lớp deck.gl.
+- Dashboard hiển thị KPI, trạng thái mô phỏng và dữ liệu của các entity.
+- Layout rõ ràng, có thể mở rộng theo từng miền nghiệp vụ.
+- Kết nối với backend FastAPI qua REST và WebSocket.
 
 ## Scripts
 
-- npm run dev: Chay local dev server.
-- npm run build: Build production.
-- npm run start: Start production server.
-- npm run typecheck: Kiem tra TypeScript.
+- `npm run dev`: chạy môi trường phát triển.
+- `npm run build`: build production.
+- `npm run start`: chạy bản production.
+- `npm run typecheck`: kiểm tra TypeScript.
 
-## Chay local nhanh
+## Cài đặt và chạy
 
-1. Copy env mau:
+1. Cài dependency:
 
-	Copy-Item .env.local.example .env.local
+   `npm install`
 
-2. Cai dependencies:
+2. Khởi động dev server:
 
-	npm install
+   `npm run dev`
 
-3. Chay dev server:
+3. Mở trình duyệt tại:
 
-	npm run dev
+   `http://localhost:3000`
 
-4. Mo trinh duyet:
+## Biến môi trường
 
-	http://localhost:3000
+Frontend hiện không bắt buộc file `.env` riêng. Nếu muốn đổi địa chỉ backend, hãy chỉnh trực tiếp trong `src/config/appConfig.ts`.
 
-## Xu ly loi JSX trong editor
+## Cấu trúc thư mục chính
 
-Neu gap loi JSX.IntrinsicElements:
+- `src/app`: điểm vào của App Router.
+- `src/components`: các component dùng chung cho dashboard, layout và map.
+- `src/features`: logic theo miền, gồm digital twin workbench.
+- `src/services`: client REST và WebSocket.
+- `src/stores`: Zustand store cho trạng thái ứng dụng.
+- `src/map`: các lớp và helper phục vụ hiển thị bản đồ 3D.
 
-1. npm install
-2. TypeScript: Restart TS Server
-3. Reload VS Code neu can
+## Lưu ý khi làm việc với VS Code
 
-## Cau truc
-
-Theo domain + feature:
-
-- src/app: App Router entry.
-- src/components: Components UI + map + dashboard.
-- src/map: Cesium/deck helpers va bridge.
-- src/services: REST/WS clients.
-- src/stores: Zustand stores.
-- src/domains: Entity-specific types/logic.
+Nếu TypeScript báo lỗi JSX sau khi cài mới dependency, hãy chạy `TypeScript: Restart TS Server` trong Command Palette rồi tải lại cửa sổ VS Code nếu cần.

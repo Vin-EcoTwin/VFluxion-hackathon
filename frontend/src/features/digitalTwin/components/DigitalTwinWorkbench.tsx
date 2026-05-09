@@ -4,7 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { CreateObjectModal } from "@/features/digitalTwin/components/CreateObjectModal";
 import { TwinSidebarDashboard } from "@/features/digitalTwin/components/TwinSidebarDashboard";
-import { useDittoTwin } from "@/features/digitalTwin/hooks/useDittoTwin";
+import { useDigitalTwinScene } from "@/features/digitalTwin/hooks/useDigitalTwinScene";
 import { useTwinSimulation } from "@/features/digitalTwin/hooks/useTwinSimulation";
 import type { LngLatAlt, TwinThing } from "@/features/digitalTwin/types/twin";
 
@@ -27,10 +27,10 @@ export function DigitalTwinWorkbench() {
     metrics,
     loading,
     syncError,
-    loadFromDitto,
+    loadScene,
     createObjectAtCoordinate,
     persistSceneBatch
-  } = useDittoTwin();
+  } = useDigitalTwinScene();
 
   const { running, toggleSimulation, stepOnce } = useTwinSimulation(scene, setScene, persistSceneBatch);
 
@@ -42,7 +42,7 @@ export function DigitalTwinWorkbench() {
       <header className="z-20 flex h-14 items-center justify-between border-b border-[color:var(--app-border)] bg-[var(--nav-background)] px-4 backdrop-blur-md">
         <div>
           <p className="font-[var(--font-display)] text-xs uppercase tracking-[0.16em] text-[var(--accent-secondary)]">
-            Deck.gl + Eclipse Ditto
+            Deck.gl + MongoDB
           </p>
           <h1 className="font-[var(--font-display)] text-base tracking-[0.04em]">Hanoi Digital Twin Mini Region</h1>
         </div>
@@ -72,7 +72,7 @@ export function DigitalTwinWorkbench() {
           running={running}
           loading={loading}
           syncError={syncError}
-          onRefresh={loadFromDitto}
+          onRefresh={loadScene}
           onToggleSimulation={toggleSimulation}
           onStep={stepOnce}
           selectedThing={selectedThing}

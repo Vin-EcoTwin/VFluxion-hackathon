@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { logger } from "@/lib/utils/logger";
-import { dittoService } from "@/services/api/ditto.service";
 import { entitiesService } from "@/services/api/entities.service";
 import { useEntitiesStore } from "@/stores/entities.store";
 import type { ChargerEntity, EVEntity } from "@/types/entities";
@@ -45,7 +44,7 @@ export function useEntitiesSync() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dittoThingCount, setDittoThingCount] = useState(0);
+  const [entityCount, setEntityCount] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -59,12 +58,7 @@ export function useEntitiesSync() {
         setError(null);
       }
 
-      try {
-        const things = await dittoService.listThings();
-        setDittoThingCount(things.length);
-      } catch (dittoError) {
-        logger.warn("Failed to query Ditto things", dittoError);
-      }
+      setEntityCount(entities.length);
     } catch (err) {
       logger.warn("Backend unreachable, switching to mock model", err);
       hydrateFromMock();
@@ -155,7 +149,7 @@ export function useEntitiesSync() {
     isLoading,
     error,
     dataSource,
-    dittoThingCount,
+    entityCount,
     refresh,
     createEV,
     createCharger

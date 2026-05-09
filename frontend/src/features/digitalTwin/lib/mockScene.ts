@@ -2,7 +2,7 @@ import {
   DEFAULT_EV_COUNT,
   DEFAULT_STATION_COUNT,
   DEFAULT_SUBSTATION_COUNT,
-  DITTO_NAMESPACE,
+  TWIN_NAMESPACE,
   HANOI_CENTER
 } from "@/features/digitalTwin/config/constants";
 import { createLoopRoute, randomInRange, randomLngLatAlt } from "@/features/digitalTwin/lib/geo";
@@ -20,7 +20,7 @@ function nowISO(): string {
 }
 
 function makeThingId(type: string, id: string): string {
-  return `${DITTO_NAMESPACE}:${type.toLowerCase()}-${id}`;
+  return `${TWIN_NAMESPACE}:${type.toLowerCase()}-${id}`;
 }
 
 function createControlCenter(): ControlCenterThing {

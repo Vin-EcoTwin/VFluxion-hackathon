@@ -19,7 +19,7 @@ type DashboardPanelProps = {
     isLoading: boolean;
     error: string | null;
     dataSource: "backend" | "mock";
-    dittoThingCount: number;
+    entityCount: number;
     refresh: () => Promise<void>;
     createEV: (input: CreateEVInput) => Promise<void>;
     createCharger: (input: CreateChargerInput) => Promise<void>;
@@ -27,7 +27,7 @@ type DashboardPanelProps = {
 };
 
 export function DashboardPanel({ sync }: DashboardPanelProps) {
-  const { isLoading, error, dataSource, dittoThingCount, refresh, createEV, createCharger } = sync;
+  const { isLoading, error, dataSource, entityCount, refresh, createEV, createCharger } = sync;
 
   const language = useUIStore((state: UIState) => state.language);
 
@@ -138,7 +138,7 @@ export function DashboardPanel({ sync }: DashboardPanelProps) {
 
           <div className="mt-3 space-y-1 text-xs text-[var(--text-muted)]">
             <p>{t(language, "map.source")}: {dataSource.toUpperCase()}</p>
-            <p>Ditto twins: {dittoThingCount}</p>
+            <p>Backend entities: {entityCount}</p>
             <p>Command center status: {commandCenter.status.toUpperCase()}</p>
             <p>
               Last sync: {lastSyncedAt ? new Date(lastSyncedAt).toLocaleTimeString(language === "en" ? "en-US" : "vi-VN") : "n/a"}

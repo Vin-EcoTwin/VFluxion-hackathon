@@ -75,11 +75,11 @@ export function TwinSidebarDashboard({
             }}
             className="rounded border border-[color:var(--app-border)] px-3 py-1 text-xs uppercase tracking-[0.12em]"
           >
-            Reload Ditto
+            Reload Scene
           </button>
         </div>
 
-        {loading && <p className="mt-2 text-xs text-[var(--text-muted)]">Loading things from Ditto...</p>}
+        {loading && <p className="mt-2 text-xs text-[var(--text-muted)]">Loading scene...</p>}
         {syncError && <p className="mt-2 text-xs text-[var(--warning-text)]">{syncError}</p>}
       </section>
 

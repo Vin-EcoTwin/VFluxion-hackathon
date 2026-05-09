@@ -15,7 +15,7 @@ export type StationStatus = "available" | "occupied" | "charging";
 
 export type SubstationStatus = "normal" | "warning" | "overload";
 
-export type TwinSource = "ditto" | "mock";
+export type TwinSource = "backend" | "mock";
 
 export interface RoutePoint {
   position: LngLatAlt;
@@ -99,13 +99,6 @@ export interface CreateObjectPayload {
   batteryLevel?: number;
   capacity?: number;
   maxMw?: number;
-}
-
-export interface DittoThingPayload {
-  thingId: string;
-  policyId?: string;
-  attributes?: Record<string, unknown>;
-  features?: Record<string, { properties: Record<string, unknown> }>;
 }
 
 export interface DashboardMetrics {
