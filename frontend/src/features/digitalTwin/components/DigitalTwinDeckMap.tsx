@@ -7,18 +7,12 @@ import {
   LightingEffect,
   _SunLight as SunLight,
 } from "@deck.gl/core";
-import { Tile3DLayer, TileLayer, TripsLayer } from "@deck.gl/geo-layers";
+import { TileLayer, TripsLayer } from "@deck.gl/geo-layers";
 import { ArcLayer, BitmapLayer, ColumnLayer, PathLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import { ScenegraphLayer } from "@deck.gl/mesh-layers";
 import type { PickingInfo } from "@deck.gl/core";
 import DeckGL from "@deck.gl/react";
-import { Tiles3DLoader } from "@loaders.gl/3d-tiles";
-import {
-  CESIUM_ION_OSM_ASSET_ID,
-  CESIUM_ION_TOKEN,
-  HANOI_CENTER,
-  MODEL_URLS
-} from "@/features/digitalTwin/config/constants";
+import { HANOI_CENTER, MODEL_URLS } from "@/features/digitalTwin/config/constants";
 import type {
   BuildingThing,
   ChargingStationThing,
@@ -158,14 +152,6 @@ export function DigitalTwinDeckMap({ scene, onCreateAtCoordinate, onSelectThing 
     });
   }, []);
 
-  const tilesetUrl = useMemo(() => {
-    const token = CESIUM_ION_TOKEN.trim();
-    if (token.length > 0) {
-      return `https://assets.cesium.com/${CESIUM_ION_OSM_ASSET_ID}/tileset.json?access_token=${token}`;
-    }
-    return null;
-  }, []);
-
   const layers = useMemo(() => {
     const osmBasemapLayer = new TileLayer({
       id: "osm-basemap-layer",
@@ -186,22 +172,6 @@ export function DigitalTwinDeckMap({ scene, onCreateAtCoordinate, onSelectThing 
         });
       }
     });
-
-    const tiles3DLayer =
-      tilesetUrl !== null
-        ? new Tile3DLayer({
-            id: "tile-3d-buildings",
-            data: tilesetUrl,
-            loader: Tiles3DLoader,
-            loadOptions: {
-              tileset: {
-                throttleRequests: true,
-                maxRequests: 8
-              }
-            },
-            pickable: false
-          })
-        : null;
 
     const buildingLayer = new PathLayer<BuildingThing>({
       id: "local-building-footprints",
@@ -353,7 +323,6 @@ export function DigitalTwinDeckMap({ scene, onCreateAtCoordinate, onSelectThing 
 
     return [
       osmBasemapLayer,
-      ...(tiles3DLayer ? [tiles3DLayer] : []),
       buildingLayer,
       evTripsLayer,
       evModelLayer,
@@ -365,7 +334,7 @@ export function DigitalTwinDeckMap({ scene, onCreateAtCoordinate, onSelectThing 
       controlPulseLayer,
       controlCenterLabelLayer
     ];
-  }, [gridArcs, parkedEvs, scene, tilesetUrl]);
+  }, [gridArcs, parkedEvs, scene]);
 
   return (
     <DeckGL
