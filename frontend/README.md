@@ -1,10 +1,10 @@
 # Frontend - EcoTwin Digital Twin
 
-Frontend sử dụng Next.js 15 App Router, TypeScript strict, Tailwind CSS, Tremor, CesiumJS và deck.gl.
+Frontend sử dụng Next.js 15 App Router, TypeScript strict, Tailwind CSS, Tremor và deck.gl.
 
 ## Mục tiêu giao diện
 
-- Bản đồ 3D tương tác với lớp nền Cesium và các lớp deck.gl.
+- Bản đồ 3D tương tác với lớp nền OSM và các lớp deck.gl.
 - Dashboard hiển thị KPI, trạng thái mô phỏng và dữ liệu của các entity.
 - Layout rõ ràng, có thể mở rộng theo từng miền nghiệp vụ.
 - Kết nối với backend FastAPI qua REST và WebSocket.

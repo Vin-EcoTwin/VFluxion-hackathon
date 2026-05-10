@@ -13,10 +13,6 @@ export const MODEL_URLS = {
     "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BarramundiFish/glTF-Binary/BarramundiFish.glb"
 };
 
-export const CESIUM_ION_OSM_ASSET_ID = 96188;
-
-export const CESIUM_ION_TOKEN = "";
-
 export const TERRAIN_ELEVATION_URL =
   "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
 
