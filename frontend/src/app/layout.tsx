@@ -15,8 +15,8 @@ const bodyFont = Rajdhani({
 });
 
 export const metadata: Metadata = {
-  title: "EcoTwin - Digital Twin V2G Hanoi",
-  description: "Cyberpunk control center for V2G simulation in Hanoi city core"
+  title: "EcoTwin - Digital Twin V2G",
+  description: "Cyberpunk control center for V2G simulation"
 };
 
 export default function RootLayout({
