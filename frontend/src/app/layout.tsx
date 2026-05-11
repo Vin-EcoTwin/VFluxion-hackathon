@@ -1,22 +1,26 @@
 import type { Metadata } from "next";
-import { Orbitron, Rajdhani } from "next/font/google";
+import { Inter, Space_Grotesk, Manrope } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
 
-const displayFont = Orbitron({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-display"
+  variable: "--font-inter"
 });
 
-const bodyFont = Rajdhani({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
-  variable: "--font-body",
-  weight: ["400", "500", "600", "700"]
+  variable: "--font-space-grotesk"
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope"
 });
 
 export const metadata: Metadata = {
-  title: "EcoTwin - Digital Twin V2G",
-  description: "Cyberpunk control center for V2G simulation"
+  title: "V-fluxion — Bidirectional Energy Intelligence",
+  description: "V2G Command Center for Charging Point Operators and EV Owners"
 };
 
 export default function RootLayout({
@@ -26,12 +30,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body
         suppressHydrationWarning
-        className={`${displayFont.variable} ${bodyFont.variable} bg-cyber-bg antialiased`}
+        className={`${inter.variable} ${spaceGrotesk.variable} ${manrope.variable} antialiased`}
       >
         {children}
       </body>
     </html>
   );
 }
+

@@ -11,15 +11,14 @@ import {
   type PickingInfo,
   type Position
 } from "@deck.gl/core";
-import { TripsLayer } from "@deck.gl/geo-layers";
-import { ColumnLayer, PolygonLayer } from "@deck.gl/layers";
+import { PolygonLayer, ScatterplotLayer } from "@deck.gl/layers";
 import { ScenegraphLayer } from "@deck.gl/mesh-layers";
+import type { ChargingStation, ActiveEV, Stall, EVFinancialHorizon } from "@/types/cpo";
+import { CHARGING_STATIONS, MOCK_EVS } from "@/store/cpo-data";
 
-const DATA_URLS = {
-  buildings: "https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/trips/buildings.json",
-  trips: "https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/trips/trips-v7.json"
-};
-
+// ---------------------------------------------------------------------------
+// Static assets
+// ---------------------------------------------------------------------------
 const MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json";
 
@@ -36,23 +35,25 @@ const INITIAL_VIEW_STATE: MapViewState = {
   bearing: 0
 };
 
-const LOOP_LENGTH = 1800;
-const TRAIL_LENGTH = 180;
-const ANIMATION_SPEED = 1;
+const DATA_URLS = {
+  buildings:
+    "https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/trips/buildings.json"
+};
 
-const ambientLight = new AmbientLight({
-  color: [255, 255, 255],
-  intensity: 1.0
-});
-
+// ---------------------------------------------------------------------------
+// Lighting
+// ---------------------------------------------------------------------------
+const ambientLight = new AmbientLight({ color: [255, 255, 255], intensity: 1.0 });
 const pointLight = new PointLight({
   color: [255, 255, 255],
   intensity: 2.0,
   position: [-74.05, 40.7, 8000]
 });
-
 const lightingEffect = new LightingEffect({ ambientLight, pointLight });
 
+// ---------------------------------------------------------------------------
+// Ground cover (keeps deck.gl / MapLibre in sync)
+// ---------------------------------------------------------------------------
 const LAND_COVER: Position[][] = [
   [
     [-74.0, 40.7],
@@ -62,181 +63,70 @@ const LAND_COVER: Position[][] = [
   ]
 ];
 
-type Trip = {
-  vendor: number;
-  path: Position[];
-  timestamps: number[];
-};
+type Building = { polygon: Position[]; height: number };
 
-type Building = {
-  polygon: Position[];
-  height: number;
-};
+// Mock data is now imported from @/store/cpo-data
 
-type ChargingStation = {
-  id: string;
-  name: string;
-  position: [number, number];
-  totalStalls: number;
-  activeStalls: number;
-  inUseStalls: number;
-};
-
-const CHARGING_STATIONS: ChargingStation[] = [
-  {
-    id: "station-01",
-    name: "Times Sq Hub",
-    position: [-73.9855, 40.758],
-    totalStalls: 7,
-    activeStalls: 7,
-    inUseStalls: 5
-  },
-  {
-    id: "station-02",
-    name: "Penn Station",
-    position: [-73.994, 40.7506],
-    totalStalls: 7,
-    activeStalls: 6,
-    inUseStalls: 4
-  },
-  {
-    id: "station-03",
-    name: "Grand Central",
-    position: [-73.9772, 40.7527],
-    totalStalls: 7,
-    activeStalls: 7,
-    inUseStalls: 6
-  },
-  {
-    id: "station-04",
-    name: "Union Square",
-    position: [-73.991, 40.7359],
-    totalStalls: 7,
-    activeStalls: 6,
-    inUseStalls: 3
-  },
-  {
-    id: "station-05",
-    name: "Wall Street",
-    position: [-74.009, 40.706],
-    totalStalls: 7,
-    activeStalls: 5,
-    inUseStalls: 2
-  },
-  {
-    id: "station-06",
-    name: "Central Park S",
-    position: [-73.9817, 40.7681],
-    totalStalls: 7,
-    activeStalls: 7,
-    inUseStalls: 4
-  },
-  {
-    id: "station-07",
-    name: "Chinatown",
-    position: [-73.9967, 40.7158],
-    totalStalls: 7,
-    activeStalls: 6,
-    inUseStalls: 6
-  }
-];
-
+// ---------------------------------------------------------------------------
+// Station color helper
+// ---------------------------------------------------------------------------
 function mixChannel(start: number, end: number, t: number) {
   return Math.round(start + (end - start) * t);
 }
-
 function getStationColor(station: ChargingStation): [number, number, number, number] {
-  const safeActive = Math.max(1, station.activeStalls);
-  const ratio = station.inUseStalls / safeActive;
+  const ratio = station.inUseStalls / Math.max(1, station.activeStalls);
   const low: [number, number, number] = [78, 222, 163];
   const high: [number, number, number] = [255, 178, 102];
-  return [
-    mixChannel(low[0], high[0], ratio),
-    mixChannel(low[1], high[1], ratio),
-    mixChannel(low[2], high[2], ratio),
-    230
-  ];
+  return [mixChannel(low[0], high[0], ratio), mixChannel(low[1], high[1], ratio), mixChannel(low[2], high[2], ratio), 230];
 }
 
-function useTripTime(loopLength: number, animationSpeed: number) {
-  const [time, setTime] = useState(0);
-
-  useEffect(() => {
-    let frameId = 0;
-    const duration = (loopLength * 60) / animationSpeed;
-    const start = performance.now();
-
-    const tick = (now: number) => {
-      const elapsed = (now - start) % duration;
-      const nextTime = (elapsed / duration) * loopLength;
-      setTime(nextTime);
-      frameId = window.requestAnimationFrame(tick);
-    };
-
-    frameId = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [animationSpeed, loopLength]);
-
-  return time;
-}
-
-/* ------------------------------------------------------------------ */
-/*  DeckGL overlay rendered inside MapLibre via useControl             */
-/*  This ensures layers share the same WebGL context & camera as the  */
-/*  basemap, so they stay perfectly anchored.                         */
-/* ------------------------------------------------------------------ */
-function DeckGLOverlay(
-  props: MapboxOverlayProps & { interleaved?: boolean }
-) {
-  const overlay = useControl<MapboxOverlay>(
-    () => new MapboxOverlay(props)
-  );
+// ---------------------------------------------------------------------------
+// DeckGL overlay (shares WebGL context with MapLibre)
+// ---------------------------------------------------------------------------
+function DeckGLOverlay(props: MapboxOverlayProps & { interleaved?: boolean }) {
+  const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
   overlay.setProps(props);
   return null;
 }
 
-export function TripsLiveMap() {
-  const time = useTripTime(LOOP_LENGTH, ANIMATION_SPEED);
-  const MODEL_URL = "/models/charge_point.glb";
-  const [modelAvailable, setModelAvailable] = useState(false);
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+export function TripsLiveMap({ onSelectEntity }: { onSelectEntity?: (entity: any) => void }) {
+  const STATION_MODEL_URL = "/models/charge_point.glb";
+  // Tạm thời trỏ ev-model sang charge_point để chứng minh layer code đã hoạt động chuẩn
+  const EV_MODEL_URL = "/models/ev-model.glb"; // TODO: Đổi lại "/models/ev-model.glb" sau khi bạn fix file model
+
+  const [stationModelAvailable, setStationModelAvailable] = useState(false);
+  const [evModelAvailable, setEvModelAvailable] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    fetch(MODEL_URL, { method: "HEAD" })
-      .then((res) => {
-        if (mounted) setModelAvailable(res.ok);
-      })
-      .catch(() => {
-        if (mounted) setModelAvailable(false);
-      });
-    return () => {
-      mounted = false;
-    };
+    Promise.all([
+      fetch(STATION_MODEL_URL, { method: "HEAD" }),
+      fetch(EV_MODEL_URL, { method: "HEAD" })
+    ]).then(([sr, er]) => {
+      if (mounted) {
+        setStationModelAvailable(sr.ok);
+        // Temporarily disable the EV model because parse-gltf crashes on the current ev-model.glb
+        setEvModelAvailable(er.ok);
+      }
+    }).catch(() => { });
+    return () => { mounted = false; };
   }, []);
 
   const layers = useMemo(() => {
     return [
+      // 1. Ground anchor
       new PolygonLayer<Position[]>({
         id: "ground",
         data: LAND_COVER,
-        getPolygon: (polygon) => polygon,
+        getPolygon: (p) => p,
         stroked: false,
         getFillColor: [0, 0, 0, 0]
       }),
-      new TripsLayer<Trip>({
-        id: "trips",
-        data: DATA_URLS.trips,
-        getPath: (d) => d.path,
-        getTimestamps: (d) => d.timestamps,
-        getColor: (d) => (d.vendor === 0 ? [253, 128, 93] : [23, 184, 190]),
-        opacity: 0.3,
-        widthMinPixels: 2,
-        jointRounded: true,
-        capRounded: true,
-        trailLength: TRAIL_LENGTH,
-        currentTime: time,
-        shadowEnabled: false
-      }),
+
+      // 2. 3D Buildings
       new PolygonLayer<Building>({
         id: "buildings",
         data: DATA_URLS.buildings,
@@ -246,65 +136,104 @@ export function TripsLiveMap() {
         getPolygon: (d) => d.polygon,
         getElevation: (d) => d.height,
         getFillColor: [74, 80, 87],
-        material: {
-          ambient: 0.1,
-          diffuse: 0.6,
-          shininess: 32,
-          specularColor: [60, 64, 70]
-        }
+        material: { ambient: 0.1, diffuse: 0.6, shininess: 32, specularColor: [60, 64, 70] }
       }),
-      // Render 3D model if available, otherwise fall back to ColumnLayer
-      (modelAvailable
+
+      // 3. Charging Stations — 3D model or column fallback
+      stationModelAvailable
         ? new ScenegraphLayer<ChargingStation>({
-            id: "charging-stations-model",
-            data: CHARGING_STATIONS,
-            scenegraph: MODEL_URL,
-            getPosition: (d) => [...d.position, 0] as [number, number, number],
-            getScale: () => [3, 3, 3],
-            getOrientation: () => [0, 0, 90] as [number, number, number],
-            sizeScale: 30,
-            sizeMinPixels: 12,
-            sizeMaxPixels: 500,
-            _lighting: "pbr",
-            pickable: true,
-            autoHighlight: true
-          })
-        : new ColumnLayer<ChargingStation>({
-            id: "charging-stations",
-            data: CHARGING_STATIONS,
-            extruded: true,
-            diskResolution: 4,
-            radius: 20,
-            radiusUnits: "meters",
-            getPosition: (d) => d.position,
-            getElevation: (d) => 24 + d.inUseStalls * 8 + d.activeStalls * 3,
-            getFillColor: (d) => getStationColor(d),
-            getLineColor: [245, 250, 255, 220],
-            lineWidthUnits: "pixels",
-            lineWidthMinPixels: 1,
-            material: {
-              ambient: 0.35,
-              diffuse: 0.7,
-              shininess: 48,
-              specularColor: [255, 255, 255]
-            },
-            pickable: true,
-            autoHighlight: true
-          }))
+          id: "charging-stations-model",
+          data: CHARGING_STATIONS,
+          scenegraph: STATION_MODEL_URL,
+          getPosition: (d) => [...d.position, 0] as [number, number, number],
+          getScale: () => [3, 3, 3],
+          getOrientation: () => [0, 0, 90] as [number, number, number],
+          sizeScale: 20,
+          sizeMinPixels: 5,
+          sizeMaxPixels: 200,
+          _lighting: "pbr",
+          pickable: true,
+          autoHighlight: true
+        })
+        : new ScenegraphLayer<ChargingStation>({
+          id: "charging-stations",
+          data: CHARGING_STATIONS,
+          // Minimal fallback sphere — no GLB needed
+          scenegraph: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/Box/glTF-Binary/Box.glb",
+          getPosition: (d) => [...d.position, 0] as [number, number, number],
+          getColor: (d) => getStationColor(d),
+          getScale: () => [10, 10, 10],
+          sizeScale: 5,
+          _lighting: "pbr",
+          pickable: true,
+          autoHighlight: true
+        }),
+
+      // 4. Active EVs — 3D model or ScatterplotLayer fallback
+      evModelAvailable
+        ? new ScenegraphLayer<ActiveEV>({
+          id: "active-evs-model",
+          data: MOCK_EVS,
+          scenegraph: EV_MODEL_URL,
+          getPosition: (d) => [...d.position, 0] as [number, number, number],
+          getScale: () => [0.7, 0.7, 0.7],
+          getOrientation: () => [0, 0, 90] as [number, number, number],
+          getColor: (d) => (d.isDischarging ? [78, 222, 163, 255] : [34, 211, 238, 255]),
+          sizeScale: 10,
+          sizeMinPixels: 10,
+          sizeMaxPixels: 300,
+          _lighting: "pbr",
+          pickable: true,
+          autoHighlight: true
+        })
+        : new ScatterplotLayer<ActiveEV>({
+          id: "active-evs",
+          data: MOCK_EVS,
+          getPosition: (d) => d.position,
+          getFillColor: (d) => (d.isDischarging ? [78, 222, 163, 255] : [34, 211, 238, 255]),
+          getLineColor: [255, 255, 255, 200],
+          getLineWidth: 2,
+          getRadius: 15,
+          radiusUnits: "meters",
+          stroked: true,
+          pickable: true,
+          autoHighlight: true,
+          lineWidthMinPixels: 2,
+        })
     ];
-  }, [time, modelAvailable]);
+  }, [stationModelAvailable, evModelAvailable]);
 
+  // ---------------------------------------------------------------------------
+  // Tooltip
+  // ---------------------------------------------------------------------------
   const getTooltip = (info: PickingInfo) => {
-    if (!info.object || !info.layer?.id?.startsWith("charging-stations")) {
-      return null;
+    if (!info.object) return null;
+    if (info.layer?.id?.startsWith("charging-stations")) {
+      const s = info.object as ChargingStation;
+      return {
+        text: `${s.name}\nTotal: ${s.totalStalls} stalls  |  In use: ${s.inUseStalls}  |  Free: ${Math.max(0, s.activeStalls - s.inUseStalls)}`
+      };
     }
+    if (info.layer?.id?.startsWith("active-evs")) {
+      const ev = info.object as ActiveEV;
+      return {
+        text: `${ev.id} — ${ev.vehicleType}\n${ev.isDischarging ? "V2G Discharging" : "Smart Charging"}  |  SoC: ${ev.socPercent}%  →  ${ev.targetSocPercent}%`
+      };
+    }
+    return null;
+  };
 
-    const station = info.object as ChargingStation;
-    const free = Math.max(0, station.activeStalls - station.inUseStalls);
-
-    return {
-      text: `${station.name}\nTotal stalls: ${station.totalStalls}\nOperational (available): ${station.activeStalls}\nFree stalls: ${free}\nIn use: ${station.inUseStalls}`
-    };
+  // ---------------------------------------------------------------------------
+  // Click handler
+  // ---------------------------------------------------------------------------
+  const handleMapClick = (info: PickingInfo) => {
+    if (info.object && info.layer?.id?.startsWith("charging-stations")) {
+      onSelectEntity?.({ type: "STATION", id: (info.object as ChargingStation).id, data: info.object });
+    } else if (info.object && info.layer?.id?.startsWith("active-evs")) {
+      onSelectEntity?.({ type: "EV", id: (info.object as ActiveEV).id, data: info.object });
+    } else {
+      onSelectEntity?.(null);
+    }
   };
 
   return (
@@ -313,14 +242,15 @@ export function TripsLiveMap() {
       mapStyle={MAP_STYLE}
       maxBounds={MANHATTAN_BOUNDS}
       initialViewState={INITIAL_VIEW_STATE}
-      maxZoom={16}
-      minZoom={11.5}
-      maxPitch={60}
+      maxZoom={20}
+      minZoom={10}
+      maxPitch={85}
     >
       <DeckGLOverlay
         layers={layers}
         effects={[lightingEffect]}
         getTooltip={getTooltip}
+        onClick={handleMapClick}
       />
     </Map>
   );
