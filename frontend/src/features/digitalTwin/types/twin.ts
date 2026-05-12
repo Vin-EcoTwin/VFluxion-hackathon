@@ -45,6 +45,7 @@ export interface EVThing extends BaseTwinThing {
 
 export interface ChargingStationThing extends BaseTwinThing {
   type: "CHARGING_STATION";
+  heading?: number;
   capacity: number;
   parkedEVs: number;
   occupiedPorts: number;
@@ -96,6 +97,7 @@ export interface CreateObjectPayload {
   type: CreateObjectType;
   name: string;
   position: LngLatAlt;
+  heading?: number;
   batteryLevel?: number;
   capacity?: number;
   maxMw?: number;

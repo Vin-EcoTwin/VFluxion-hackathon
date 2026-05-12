@@ -6,7 +6,23 @@ import { CreateObjectModal } from "@/features/digitalTwin/components/CreateObjec
 import { TwinSidebarDashboard } from "@/features/digitalTwin/components/TwinSidebarDashboard";
 import { useDigitalTwinScene } from "@/features/digitalTwin/hooks/useDigitalTwinScene";
 import { useTwinSimulation } from "@/features/digitalTwin/hooks/useTwinSimulation";
-import type { LngLatAlt, TwinThing } from "@/features/digitalTwin/types/twin";
+import type { BuildingThing, LngLatAlt, TwinThing } from "@/features/digitalTwin/types/twin";
+
+function checkValidPosition(position: LngLatAlt, buildings: BuildingThing[]) {
+  const x = position[0], y = position[1];
+  for (const b of buildings) {
+    let inside = false;
+    const polygon = b.footprint;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i][0], yi = polygon[i][1];
+      const xj = polygon[j][0], yj = polygon[j][1];
+      const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    if (inside) return false;
+  }
+  return true;
+}
 
 const DigitalTwinDeckMap = dynamic(
   () => import("@/features/digitalTwin/components/DigitalTwinDeckMap").then((module) => module.DigitalTwinDeckMap),
@@ -37,6 +53,8 @@ export function DigitalTwinWorkbench() {
   const [selectedThing, setSelectedThing] = useState<TwinThing | null>(null);
   const [createCoordinate, setCreateCoordinate] = useState<LngLatAlt | null>(null);
 
+  const isValidPosition = createCoordinate ? checkValidPosition(createCoordinate, scene.buildings) : undefined;
+
   return (
     <main className="relative flex h-screen w-full flex-col overflow-hidden bg-[var(--map-panel)] text-[var(--text-primary)]">
       <header className="z-20 flex h-14 items-center justify-between border-b border-[color:var(--app-border)] bg-[var(--nav-background)] px-4 backdrop-blur-md">
@@ -53,13 +71,30 @@ export function DigitalTwinWorkbench() {
         <div className="relative h-full w-full">
           <DigitalTwinDeckMap
             scene={scene}
-            onCreateAtCoordinate={(position) => setCreateCoordinate(position)}
+            onCreateAtCoordinate={(position) => {
+              const isValid = checkValidPosition(position, scene.buildings);
+              if (selectedThing?.type === "CHARGING_STATION" && isValid) {
+                const updatedStation = { ...selectedThing, position };
+                const newScene = {
+                  ...scene,
+                  chargingStations: scene.chargingStations.map((st) =>
+                    st.id === selectedThing.id ? updatedStation : st
+                  )
+                };
+                setScene(newScene);
+                setSelectedThing(updatedStation);
+                void persistSceneBatch([updatedStation]);
+              } else {
+                setCreateCoordinate(position);
+              }
+            }}
             onSelectThing={setSelectedThing}
           />
 
           <CreateObjectModal
             open={Boolean(createCoordinate)}
             coordinate={createCoordinate}
+            isValidPosition={isValidPosition}
             onClose={() => setCreateCoordinate(null)}
             onCreate={async (payload) => {
               await createObjectAtCoordinate(payload);

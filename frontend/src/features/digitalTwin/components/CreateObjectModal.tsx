@@ -6,17 +6,19 @@ import type { CreateObjectPayload, CreateObjectType, LngLatAlt } from "@/feature
 type CreateObjectModalProps = {
   open: boolean;
   coordinate: LngLatAlt | null;
+  isValidPosition?: boolean;
   onClose: () => void;
   onCreate: (payload: CreateObjectPayload) => Promise<void>;
 };
 
-export function CreateObjectModal({ open, coordinate, onClose, onCreate }: CreateObjectModalProps) {
+export function CreateObjectModal({ open, coordinate, isValidPosition, onClose, onCreate }: CreateObjectModalProps) {
   const [type, setType] = useState<CreateObjectType>("EV");
   const [name, setName] = useState("New object");
   const [batteryLevel, setBatteryLevel] = useState(78);
   const [capacity, setCapacity] = useState(4);
   const [maxMw, setMaxMw] = useState(9);
   const [saving, setSaving] = useState(false);
+  const [heading, setHeading] = useState(0);
 
   const title = useMemo(() => {
     if (type === "EV") {
@@ -39,6 +41,12 @@ export function CreateObjectModal({ open, coordinate, onClose, onCreate }: Creat
         <p className="mt-2 text-xs text-[var(--text-muted)]">
           Position: {coordinate[0].toFixed(6)}, {coordinate[1].toFixed(6)}
         </p>
+
+        {isValidPosition === false && (
+          <div className="mt-2 rounded border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-400">
+            Vị trí đè lên công trình khác
+          </div>
+        )}
 
         <div className="mt-3 space-y-3 text-sm">
           <label className="flex flex-col gap-1">
@@ -78,17 +86,34 @@ export function CreateObjectModal({ open, coordinate, onClose, onCreate }: Creat
           )}
 
           {type === "CHARGING_STATION" && (
-            <label className="flex flex-col gap-1">
-              Capacity (ports)
-              <input
-                type="number"
-                min={1}
-                max={12}
-                value={capacity}
-                onChange={(event) => setCapacity(Number(event.target.value))}
-                className="rounded border border-[color:var(--app-border)] bg-[var(--surface-soft)] px-2 py-1 outline-none"
-              />
-            </label>
+            <>
+              <label className="flex flex-col gap-1">
+                Heading (degrees)
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={360}
+                    value={heading}
+                    onChange={(event) => setHeading(Number(event.target.value))}
+                    className="flex-1 rounded border border-[color:var(--app-border)] bg-[var(--surface-soft)] outline-none"
+                  />
+                  <span className="w-8 text-right text-xs text-[var(--text-muted)]">{heading}°</span>
+                </div>
+              </label>
+
+              <label className="flex flex-col gap-1">
+                Capacity (ports)
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={capacity}
+                  onChange={(event) => setCapacity(Number(event.target.value))}
+                  className="rounded border border-[color:var(--app-border)] bg-[var(--surface-soft)] px-2 py-1 outline-none"
+                />
+              </label>
+            </>
           )}
 
           {type === "POWER_SUBSTATION" && (
@@ -116,7 +141,7 @@ export function CreateObjectModal({ open, coordinate, onClose, onCreate }: Creat
           </button>
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || isValidPosition === false}
             onClick={async () => {
               setSaving(true);
               try {
@@ -124,6 +149,7 @@ export function CreateObjectModal({ open, coordinate, onClose, onCreate }: Creat
                   type,
                   name: name.trim() || "Unnamed",
                   position: coordinate,
+                  heading,
                   batteryLevel,
                   capacity,
                   maxMw
