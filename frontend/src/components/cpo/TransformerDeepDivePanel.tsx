@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { TransformerEntity } from "@/types/cpo";
+import type { TransformerEntity, ChargingStation } from "@/types/cpo";
 
 function loadBand(loadFactor: number) {
   if (loadFactor >= 0.9) return "critical";
@@ -37,10 +37,12 @@ function formatKw(value: number) {
 
 export function TransformerDeepDivePanel({
   onClose,
-  data
+  data,
+  stations
 }: {
   onClose: () => void;
   data?: TransformerEntity;
+  stations?: ChargingStation[];
 }) {
   if (!data) return null;
   const telemetry = data.telemetry;
@@ -98,7 +100,13 @@ export function TransformerDeepDivePanel({
         </div>
         <div className="flex justify-between text-[11px] text-on-surface-variant">
           <span>Net Power</span>
-          <span className="text-on-surface">{formatKw(telemetry.netPower)} / {formatKw(data.maxCapacityKw)}</span>
+          <span className="text-on-surface">
+            <span className={data.minCapacityKw !== undefined && telemetry.netPower < data.minCapacityKw ? "text-red-400 font-bold" : ""}>
+              {formatKw(telemetry.netPower)}
+            </span>
+            {" / Max: "}{formatKw(data.maxCapacityKw)}
+            {data.minCapacityKw !== undefined && ` | Min: ${formatKw(data.minCapacityKw)}`}
+          </span>
         </div>
       </section>
 
@@ -111,10 +119,38 @@ export function TransformerDeepDivePanel({
           <span className="text-on-surface-variant">Inflexible load (P^L)</span>
           <span className="text-red-300">+{formatKw(telemetry.inflexibleLoad)}</span>
         </div>
+        {telemetry.inflexibleLoadBreakdown && (
+          <div className="flex flex-col gap-1 pl-4 border-l border-outline-variant/30 mt-1 mb-2">
+             <div className="flex justify-between text-[11px] text-on-surface-variant">
+               <span>Residential (Home)</span>
+               <span className="text-red-300/80">+{formatKw(telemetry.inflexibleLoadBreakdown.residentialKw)}</span>
+             </div>
+             <div className="flex justify-between text-[11px] text-on-surface-variant">
+               <span>Industrial (Factory)</span>
+               <span className="text-red-300/80">+{formatKw(telemetry.inflexibleLoadBreakdown.industrialKw)}</span>
+             </div>
+          </div>
+        )}
         <div className="flex justify-between text-sm">
           <span className="text-on-surface-variant">EV load (P^EVs)</span>
           <span className="text-amber-300">{telemetry.evLoad >= 0 ? "+" : ""}{formatKw(telemetry.evLoad)}</span>
         </div>
+        {telemetry.evLoadBreakdown && (
+          <div className="flex flex-col gap-1 pl-4 border-l border-outline-variant/30 mt-1 mb-2">
+             <div className="flex justify-between text-[11px] text-on-surface-variant">
+               <span>Electric Cars</span>
+               <span className="text-amber-300/80">{telemetry.evLoadBreakdown.carsKw >= 0 ? "+" : ""}{formatKw(telemetry.evLoadBreakdown.carsKw)}</span>
+             </div>
+             <div className="flex justify-between text-[11px] text-on-surface-variant">
+               <span>Electric Trucks</span>
+               <span className="text-amber-300/80">{telemetry.evLoadBreakdown.trucksKw >= 0 ? "+" : ""}{formatKw(telemetry.evLoadBreakdown.trucksKw)}</span>
+             </div>
+             <div className="flex justify-between text-[11px] text-on-surface-variant mt-1 border-t border-outline-variant/20 pt-1">
+               <span className="italic text-error">V2G Degradation Cost (C_deg)</span>
+               <span className="text-error">${telemetry.evLoadBreakdown.degradationCost.toFixed(2)}</span>
+             </div>
+          </div>
+        )}
         <div className="flex justify-between text-sm">
           <span className="text-on-surface-variant">PV generation (P^PV)</span>
           <span className="text-emerald-300">-{formatKw(telemetry.pvGeneration)}</span>
@@ -124,6 +160,25 @@ export function TransformerDeepDivePanel({
           <span className="text-primary">{formatKw(telemetry.netPower)}</span>
         </div>
       </section>
+
+      {stations && stations.length > 0 && (
+        <section className="glass-panel rounded-xl p-md flex flex-col gap-sm">
+          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Connected Stations ({stations.length})</span>
+          <div className="flex flex-col gap-2 mt-1">
+            {stations.map(station => (
+              <div key={station.id} className="flex justify-between items-center bg-surface-variant/20 p-2 rounded-lg border border-outline-variant/20">
+                <div className="flex flex-col">
+                  <span className="text-xs text-on-surface font-semibold">{station.name}</span>
+                  <span className="text-[10px] text-on-surface-variant">{station.inUseStalls}/{station.activeStalls} stalls active</span>
+                </div>
+                <div className="text-xs text-primary font-data-mono">
+                  {(station.stalls.reduce((sum, stall) => sum + (stall.powerKw ?? 0), 0)) >= 0 ? "+" : ""}{formatKw(station.stalls.reduce((sum, stall) => sum + (stall.powerKw ?? 0), 0))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {drActive && (
         <section className="glass-panel rounded-xl p-md border border-red-400/40 bg-red-950/20">

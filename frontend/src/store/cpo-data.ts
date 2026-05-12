@@ -253,11 +253,21 @@ function buildTransformerHistory(baseKw: number): TransformerEntity["powerHistor
 }
 
 function buildTransformerTelemetry(baseKw: number): TransformerTelemetry {
+  const inflexibleLoad = Math.round(baseKw * 0.45);
   return {
     timestamp: new Date().toISOString(),
     loadFactor: 0,
-    inflexibleLoad: Math.round(baseKw * 0.45),
+    inflexibleLoad,
+    inflexibleLoadBreakdown: {
+      residentialKw: Math.round(inflexibleLoad * 0.6),
+      industrialKw: Math.round(inflexibleLoad * 0.4)
+    },
     evLoad: 0,
+    evLoadBreakdown: {
+      carsKw: 0,
+      trucksKw: 0,
+      degradationCost: 0
+    },
     pvGeneration: Math.round(baseKw * 0.12),
     netPower: 0,
     drCapacityReduction: 0
@@ -271,6 +281,7 @@ export const TRANSFORMERS: TransformerEntity[] = [
     position: [-73.99, 40.75],
     heading: 25,
     maxCapacityKw: 1500,
+    minCapacityKw: -300,
     stationIds: ["station-01", "station-02", "station-04", "station-10", "station-11", "station-14"],
     telemetry: {
       ...buildTransformerTelemetry(1500),
@@ -293,6 +304,7 @@ export const TRANSFORMERS: TransformerEntity[] = [
     position: [-74.005, 40.71],
     heading: -15,
     maxCapacityKw: 2000,
+    minCapacityKw: -500,
     stationIds: ["station-05", "station-07", "station-08", "station-13"],
     telemetry: {
       ...buildTransformerTelemetry(2000),
@@ -311,6 +323,7 @@ export const TRANSFORMERS: TransformerEntity[] = [
     position: [-73.97, 40.76],
     heading: 45,
     maxCapacityKw: 1800,
+    minCapacityKw: -400,
     stationIds: ["station-03", "station-06", "station-09", "station-12"],
     telemetry: {
       ...buildTransformerTelemetry(1800),

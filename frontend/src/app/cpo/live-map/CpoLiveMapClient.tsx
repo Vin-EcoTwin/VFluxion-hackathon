@@ -99,6 +99,11 @@ function buildPowerHistory(baseKw: number): TransformerEntity["powerHistory"] {
 function withComputedTelemetry(transformer: TransformerEntity, stations: ChargingStation[]): TransformerEntity {
   const linkedStations = stations.filter((station) => transformer.stationIds.includes(station.id));
   const evLoad = linkedStations.reduce((sum, station) => sum + stationNetPower(station), 0);
+  
+  const carsKw = Math.round(evLoad * 0.7);
+  const trucksKw = evLoad - carsKw;
+  const degradationCost = Math.round(Math.abs(evLoad) * 0.05 * 100) / 100;
+
   const netPower = transformer.telemetry.inflexibleLoad + evLoad - transformer.telemetry.pvGeneration;
   const loadFactor = transformer.maxCapacityKw > 0 ? netPower / transformer.maxCapacityKw : 0;
   const drRatio = clampNumber(transformer.telemetry.drCapacityReduction / 100, 0, 1);
@@ -120,6 +125,7 @@ function withComputedTelemetry(transformer: TransformerEntity, stations: Chargin
       ...transformer.telemetry,
       timestamp: new Date().toISOString(),
       evLoad,
+      evLoadBreakdown: { carsKw, trucksKw, degradationCost },
       netPower: Math.round(netPower),
       loadFactor: Number(loadFactor.toFixed(3))
     }
@@ -183,6 +189,7 @@ export function CpoLiveMapClient() {
   const [movingHeading, setMovingHeading] = useState<number | null>(null);
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [shiftPressed, setShiftPressed] = useState(false);
+  const [isPricePanelOpen, setIsPricePanelOpen] = useState(true);
 
   const mode = useStationEditorStore((state) => state.mode);
   const assetType = useStationEditorStore((state) => state.assetType);
@@ -665,21 +672,101 @@ export function CpoLiveMapClient() {
 
       {/* Default Map Overlay (City Overview) */}
       {mode === "idle" && !selectedStation && !selectedTransformer && !selectedEV && (
-        <section className="absolute right-8 top-8 z-30 min-w-[240px] rounded-xl glass-panel px-4 py-3 shadow-2xl border-cyan-glow pointer-events-auto">
-          <div className="flex items-center justify-between border-b border-outline-variant/40 pb-2">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
-              Current Grid Price
+        <section className="absolute right-8 top-8 z-30 min-w-[260px] rounded-xl glass-panel px-4 py-3 shadow-2xl border-cyan-glow pointer-events-auto transition-all duration-300">
+          <div 
+            className="flex items-center justify-between border-b border-outline-variant/40 pb-2 cursor-pointer hover:bg-surface-container/20 rounded px-1 -mx-1"
+            onClick={() => setIsPricePanelOpen(!isPricePanelOpen)}
+          >
+            <span className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">
+                {isPricePanelOpen ? "expand_less" : "expand_more"}
+              </span>
+              Grid Price & Time
             </span>
-            <span className="material-symbols-outlined text-primary">show_chart</span>
+            <span className="material-symbols-outlined text-primary text-[18px]">show_chart</span>
           </div>
-          <div className="mt-3 flex items-end gap-2">
-            <span className="font-headline-md text-2xl text-primary">$0.24</span>
-            <span className="text-xs text-on-surface-variant">/kWh</span>
-          </div>
-          <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-secondary/30 bg-secondary/10 px-2 py-1 text-xs text-secondary">
-            <span className="material-symbols-outlined text-[16px]">trending_down</span>
-            -0.02 vs 1h ago
-          </div>
+          
+          {isPricePanelOpen ? (
+            <div className="mt-3 flex flex-col gap-4 animate-in fade-in duration-200">
+              {/* Current Time & Status */}
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-on-surface-variant uppercase">Current Time</span>
+                  <span className="text-sm font-medium text-on-surface tracking-wider">19:15 PM</span>
+                </div>
+                <div className="rounded border border-error/40 bg-error/15 px-2 py-0.5 text-[10px] font-bold text-error uppercase shadow-[0_0_10px_rgba(239,68,68,0.2)]">
+                  Peak Hour
+                </div>
+              </div>
+
+              {/* Price Details */}
+              <div>
+                <div className="flex items-end gap-2">
+                  <span className="font-headline-md text-3xl text-error drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">$0.42</span>
+                  <span className="text-xs text-on-surface-variant pb-1">/kWh</span>
+                </div>
+                <div className="mt-1 inline-flex items-center gap-1 rounded border border-error/30 bg-error/10 px-1.5 py-0.5 text-[10px] text-error">
+                  <span className="material-symbols-outlined text-[12px]">trending_up</span>
+                  +0.18 vs Off-Peak
+                </div>
+              </div>
+
+              {/* Time Frames (3 types) */}
+              <div className="flex flex-col gap-1.5 rounded-lg border border-outline-variant/30 bg-surface-container/20 p-2.5 text-xs">
+                <div className="flex items-center justify-between pb-1.5 border-b border-outline-variant/20">
+                  <span className="text-on-surface-variant flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-secondary"></div>
+                    Off-Peak <span className="text-[10px] opacity-70">(00:00-08:00)</span>
+                  </span>
+                  <span className="text-secondary font-medium">$0.24</span>
+                </div>
+                <div className="flex items-center justify-between pb-1.5 border-b border-outline-variant/20">
+                  <span className="text-on-surface-variant flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-primary"></div>
+                    Standard <span className="text-[10px] opacity-70">(08:00-16:00)</span>
+                  </span>
+                  <span className="text-primary font-medium">$0.32</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-on-surface flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-error shadow-[0_0_5px_rgba(239,68,68,0.6)]"></div>
+                    Peak <span className="text-[10px] opacity-70">(16:00-20:00)</span>
+                  </span>
+                  <span className="text-error font-bold">$0.42</span>
+                </div>
+              </div>
+
+              {/* Charge vs Discharge Highlights (V2G Arbitrage) */}
+              <div className="flex flex-col gap-1.5 rounded-lg border border-cyan-glow bg-primary/5 p-2.5 text-[11px]">
+                <div className="flex items-center gap-1 text-primary font-medium mb-1">
+                  <span className="material-symbols-outlined text-[14px]">bolt</span>
+                  V2G Arbitrage Opportunity
+                </div>
+                <div className="flex justify-between text-on-surface-variant">
+                  <span>Charge (Off-Peak):</span>
+                  <span className="text-secondary">Cost $0.24</span>
+                </div>
+                <div className="flex justify-between text-on-surface-variant">
+                  <span>Discharge (Peak):</span>
+                  <span className="text-error">Revenue $0.42</span>
+                </div>
+                <div className="mt-1 border-t border-primary/20 pt-1.5 flex justify-between font-bold text-primary text-xs">
+                  <span>Potential Margin:</span>
+                  <span>+$0.18/kWh</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 flex items-center justify-between animate-in fade-in">
+              <div className="flex items-end gap-1">
+                <span className="font-headline-md text-xl text-error">$0.42</span>
+                <span className="text-[10px] text-on-surface-variant pb-0.5">/kWh</span>
+              </div>
+              <div className="rounded border border-error/40 bg-error/15 px-1.5 py-0.5 text-[9px] font-bold text-error uppercase">
+                Peak
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -695,6 +782,7 @@ export function CpoLiveMapClient() {
         <TransformerDeepDivePanel
           onClose={() => setSelectedTransformer(null)}
           data={selectedTransformer}
+          stations={stations.filter(s => selectedTransformer.stationIds.includes(s.id))}
         />
       )}
       {selectedEV && (
