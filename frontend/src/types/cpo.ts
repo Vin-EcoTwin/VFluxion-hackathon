@@ -37,7 +37,16 @@ export type TransformerTelemetry = {
   timestamp: string;
   loadFactor: number;
   inflexibleLoad: number;
+  inflexibleLoadBreakdown?: {
+    residentialKw: number;
+    industrialKw: number;
+  };
   evLoad: number;
+  evLoadBreakdown?: {
+    carsKw: number;
+    trucksKw: number;
+    degradationCost: number;
+  };
   pvGeneration: number;
   netPower: number;
   drCapacityReduction: number;
@@ -64,6 +73,7 @@ export type TransformerEntity = {
   position: [number, number];
   heading?: number;
   maxCapacityKw: number;
+  minCapacityKw?: number;
   stationIds: string[];
   telemetry: TransformerTelemetry;
   status: TransformerStatus;
