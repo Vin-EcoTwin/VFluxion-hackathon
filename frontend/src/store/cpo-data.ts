@@ -1,4 +1,11 @@
-import type { ChargingStation, ActiveEV, Stall, EVFinancialHorizon } from "@/types/cpo";
+import type {
+  ChargingStation,
+  ActiveEV,
+  Stall,
+  EVFinancialHorizon,
+  TransformerEntity,
+  TransformerTelemetry
+} from "@/types/cpo";
 
 // ---------------------------------------------------------------------------
 // Helper: build a financial horizon with mock history
@@ -131,7 +138,14 @@ const STATION_POSITIONS: Record<string, [number, number]> = {
   "station-04": [-73.991, 40.7359],
   "station-05": [-74.009, 40.706],
   "station-06": [-73.9817, 40.7681],
-  "station-07": [-73.9967, 40.7158]
+  "station-07": [-73.9967, 40.7158],
+  "station-08": [-74.015, 40.712],
+  "station-09": [-73.97, 40.76],
+  "station-10": [-73.98, 40.73],
+  "station-11": [-74.00, 40.74],
+  "station-12": [-73.96, 40.77],
+  "station-13": [-73.99, 40.72],
+  "station-14": [-74.01, 40.75]
 };
 
 function buildStallsForStation(stationId: string, totalStalls: number, targetInUse: number): Stall[] {
@@ -218,5 +232,95 @@ export const CHARGING_STATIONS: ChargingStation[] = [
   { id: "station-04", name: "Union Square", position: STATION_POSITIONS["station-04"], totalStalls: 7, activeStalls: 6, inUseStalls: 3, stalls: buildStallsForStation("station-04", 7, 3), financials: defaultFinancials, fulfillment: 91 },
   { id: "station-05", name: "Wall Street", position: STATION_POSITIONS["station-05"], totalStalls: 7, activeStalls: 5, inUseStalls: 2, stalls: buildStallsForStation("station-05", 7, 2), financials: defaultFinancials, fulfillment: 85 },
   { id: "station-06", name: "Central Park S", position: STATION_POSITIONS["station-06"], totalStalls: 7, activeStalls: 7, inUseStalls: 4, stalls: buildStallsForStation("station-06", 7, 4), financials: defaultFinancials, fulfillment: 95 },
-  { id: "station-07", name: "Chinatown", position: STATION_POSITIONS["station-07"], totalStalls: 7, activeStalls: 6, inUseStalls: 6, stalls: buildStallsForStation("station-07", 7, 6), financials: defaultFinancials, fulfillment: 92 }
+  { id: "station-07", name: "Chinatown", position: STATION_POSITIONS["station-07"], totalStalls: 7, activeStalls: 6, inUseStalls: 6, stalls: buildStallsForStation("station-07", 7, 6), financials: defaultFinancials, fulfillment: 92 },
+  { id: "station-08", name: "Tribeca Hub", position: STATION_POSITIONS["station-08"], totalStalls: 7, activeStalls: 7, inUseStalls: 5, stalls: buildStallsForStation("station-08", 7, 5), financials: defaultFinancials, fulfillment: 90 },
+  { id: "station-09", name: "Columbus Circle", position: STATION_POSITIONS["station-09"], totalStalls: 7, activeStalls: 6, inUseStalls: 4, stalls: buildStallsForStation("station-09", 7, 4), financials: defaultFinancials, fulfillment: 85 },
+  { id: "station-10", name: "East Village", position: STATION_POSITIONS["station-10"], totalStalls: 7, activeStalls: 7, inUseStalls: 6, stalls: buildStallsForStation("station-10", 7, 6), financials: defaultFinancials, fulfillment: 92 },
+  { id: "station-11", name: "Chelsea", position: STATION_POSITIONS["station-11"], totalStalls: 7, activeStalls: 6, inUseStalls: 3, stalls: buildStallsForStation("station-11", 7, 3), financials: defaultFinancials, fulfillment: 88 },
+  { id: "station-12", name: "Upper East Side", position: STATION_POSITIONS["station-12"], totalStalls: 7, activeStalls: 5, inUseStalls: 2, stalls: buildStallsForStation("station-12", 7, 2), financials: defaultFinancials, fulfillment: 80 },
+  { id: "station-13", name: "SoHo", position: STATION_POSITIONS["station-13"], totalStalls: 7, activeStalls: 7, inUseStalls: 4, stalls: buildStallsForStation("station-13", 7, 4), financials: defaultFinancials, fulfillment: 93 },
+  { id: "station-14", name: "Hudson Yards", position: STATION_POSITIONS["station-14"], totalStalls: 7, activeStalls: 6, inUseStalls: 6, stalls: buildStallsForStation("station-14", 7, 6), financials: defaultFinancials, fulfillment: 96 }
+];
+
+function buildTransformerHistory(baseKw: number): TransformerEntity["powerHistory"] {
+  return Array.from({ length: 12 }, (_, idx) => {
+    const wave = Math.sin((idx / 11) * Math.PI * 2);
+    return {
+      time: `${String(6 + idx).padStart(2, "0")}:00`,
+      netPower: Math.max(0, Math.round(baseKw + wave * baseKw * 0.18))
+    };
+  });
+}
+
+function buildTransformerTelemetry(baseKw: number): TransformerTelemetry {
+  return {
+    timestamp: new Date().toISOString(),
+    loadFactor: 0,
+    inflexibleLoad: Math.round(baseKw * 0.45),
+    evLoad: 0,
+    pvGeneration: Math.round(baseKw * 0.12),
+    netPower: 0,
+    drCapacityReduction: 0
+  };
+}
+
+export const TRANSFORMERS: TransformerEntity[] = [
+  {
+    id: "transformer-01",
+    name: "TX-SUBSTATION-01",
+    position: [-73.99, 40.75],
+    heading: 25,
+    maxCapacityKw: 1500,
+    stationIds: ["station-01", "station-02", "station-04", "station-10", "station-11", "station-14"],
+    telemetry: {
+      ...buildTransformerTelemetry(1500),
+      drCapacityReduction: 20
+    },
+    status: "optimal",
+    drEvent: {
+      label: "Peak Shaving",
+      minutesRemaining: 15
+    },
+    health: {
+      hotSpotTempC: 84,
+      lossOfLifeDailyPct: 0.02
+    },
+    powerHistory: buildTransformerHistory(1180)
+  },
+  {
+    id: "transformer-02",
+    name: "TX-SUBSTATION-02",
+    position: [-74.005, 40.71],
+    heading: -15,
+    maxCapacityKw: 2000,
+    stationIds: ["station-05", "station-07", "station-08", "station-13"],
+    telemetry: {
+      ...buildTransformerTelemetry(2000),
+      drCapacityReduction: 0
+    },
+    status: "optimal",
+    health: {
+      hotSpotTempC: 78,
+      lossOfLifeDailyPct: 0.015
+    },
+    powerHistory: buildTransformerHistory(1450)
+  },
+  {
+    id: "transformer-03",
+    name: "TX-SUBSTATION-03",
+    position: [-73.97, 40.76],
+    heading: 45,
+    maxCapacityKw: 1800,
+    stationIds: ["station-03", "station-06", "station-09", "station-12"],
+    telemetry: {
+      ...buildTransformerTelemetry(1800),
+      drCapacityReduction: 10
+    },
+    status: "optimal",
+    health: {
+      hotSpotTempC: 80,
+      lossOfLifeDailyPct: 0.018
+    },
+    powerHistory: buildTransformerHistory(1300)
+  }
 ];

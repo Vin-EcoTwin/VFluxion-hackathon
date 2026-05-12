@@ -215,7 +215,7 @@ export function DigitalTwinDeckMap({ scene, onCreateAtCoordinate, onSelectThing 
       data: scene.chargingStations,
       scenegraph: MODEL_URLS.chargingStation,
       getPosition: (station: ChargingStationThing) => [station.position[0], station.position[1], 0],
-      getOrientation: [0, 0, 0],
+      getOrientation: (station: ChargingStationThing) => [0, station.heading || 0, 0],
       getColor: (station: ChargingStationThing) =>
         station.status === "occupied"
           ? [255, 108, 108, 230]

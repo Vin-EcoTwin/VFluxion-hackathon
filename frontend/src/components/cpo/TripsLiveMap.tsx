@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Map, useControl } from "react-map-gl/maplibre";
+import { Map as MapView, useControl } from "react-map-gl/maplibre";
 import { MapboxOverlay, type MapboxOverlayProps } from "@deck.gl/mapbox";
 import {
   AmbientLight,
@@ -11,10 +11,16 @@ import {
   type PickingInfo,
   type Position
 } from "@deck.gl/core";
-import { PolygonLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { TripsLayer } from "@deck.gl/geo-layers";
+import { ArcLayer, PolygonLayer, ScatterplotLayer } from "@deck.gl/layers";
 import { ScenegraphLayer } from "@deck.gl/mesh-layers";
-import type { ChargingStation, ActiveEV, Stall, EVFinancialHorizon } from "@/types/cpo";
-import { CHARGING_STATIONS, MOCK_EVS } from "@/store/cpo-data";
+import type { ChargingStation, ActiveEV, TransformerEntity } from "@/types/cpo";
+import { CHARGING_STATIONS, MOCK_EVS, TRANSFORMERS } from "@/store/cpo-data";
+
+export type MapClickInfo = {
+  coordinate: [number, number];
+  isValidPosition: boolean;
+};
 
 // ---------------------------------------------------------------------------
 // Static assets
@@ -65,6 +71,25 @@ const LAND_COVER: Position[][] = [
 
 type Building = { polygon: Position[]; height: number };
 
+// ---------------------------------------------------------------------------
+// Point-in-polygon collision check (raycasting)
+// ---------------------------------------------------------------------------
+function isPositionValid(coord: [number, number], buildings: Building[]): boolean {
+  const x = coord[0], y = coord[1];
+  for (const b of buildings) {
+    let inside = false;
+    const poly = b.polygon;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i][0], yi = poly[i][1];
+      const xj = poly[j][0], yj = poly[j][1];
+      const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    if (inside) return false;
+  }
+  return true;
+}
+
 // Mock data is now imported from @/store/cpo-data
 
 // ---------------------------------------------------------------------------
@@ -80,6 +105,156 @@ function getStationColor(station: ChargingStation): [number, number, number, num
   return [mixChannel(low[0], high[0], ratio), mixChannel(low[1], high[1], ratio), mixChannel(low[2], high[2], ratio), 230];
 }
 
+function getTransformerColor(transformer: TransformerEntity): [number, number, number, number] {
+  if (transformer.status === "critical") return [255, 96, 96, 235];
+  if (transformer.status === "warning") return [255, 186, 82, 235];
+  if (transformer.status === "dr_active") return [255, 126, 207, 235];
+  return [96, 232, 255, 230];
+}
+
+const FLOW_BASE_DURATION = 1000;
+const FLOW_OFFSETS = [0, 0.33, 0.66];
+
+type SpeedGroup = "slow" | "normal" | "fast";
+
+const SPEED_GROUP_FACTOR: Record<SpeedGroup, number> = {
+  slow: 0.75,
+  normal: 1,
+  fast: 1.35
+};
+
+type StationFlowLink = {
+  id: string;
+  transformerId: string;
+  stationId: string;
+  sourcePosition: [number, number];
+  targetPosition: [number, number];
+  powerFlow: number;
+  capacityRatio: number;
+};
+
+type FlowTrip = {
+  id: string;
+  path: [number, number, number][];
+  timestamps: number[];
+  isV2G: boolean;
+  ratio: number;
+  speedGroup: SpeedGroup;
+};
+
+function stationNetPower(station: ChargingStation): number {
+  const stallPower = station.stalls.reduce((sum, stall) => sum + (stall.powerKw ?? 0), 0);
+  if (stallPower !== 0) return stallPower;
+  if (station.inUseStalls > 0) return station.inUseStalls * 11;
+  return 0;
+}
+
+function pickSpeedGroup(powerFlow: number): SpeedGroup {
+  const magnitude = Math.abs(powerFlow);
+  if (magnitude < 8) return "slow";
+  if (magnitude < 22) return "normal";
+  return "fast";
+}
+
+function buildTransformerLinks(
+  transformers: TransformerEntity[],
+  stations: ChargingStation[]
+): StationFlowLink[] {
+  const stationMap = new Map(stations.map((station) => [station.id, station]));
+  const links: StationFlowLink[] = [];
+
+  for (const transformer of transformers) {
+    for (const stationId of transformer.stationIds) {
+      const station = stationMap.get(stationId);
+      if (!station) continue;
+      const powerFlow = stationNetPower(station);
+      const ratioBase = Math.max(1, station.totalStalls * 12);
+      links.push({
+        id: `link-${transformer.id}-${station.id}`,
+        transformerId: transformer.id,
+        stationId: station.id,
+        sourcePosition: transformer.position,
+        targetPosition: station.position,
+        powerFlow,
+        capacityRatio: Math.min(1, Math.abs(powerFlow) / ratioBase)
+      });
+    }
+  }
+
+  return links;
+}
+
+function generateArcTrip(
+  source: [number, number],
+  target: [number, number],
+  powerFlow: number,
+  numPoints = 20,
+  maxAltitude = 80
+): { path: [number, number, number][]; timestamps: number[] } {
+  const path: [number, number, number][] = [];
+  const timestamps: number[] = [];
+  const isV2G = powerFlow < 0;
+  const pStart = isV2G ? target : source;
+  const pEnd = isV2G ? source : target;
+
+  for (let i = 0; i <= numPoints; i += 1) {
+    const t = i / numPoints;
+    const lng = pStart[0] + (pEnd[0] - pStart[0]) * t;
+    const lat = pStart[1] + (pEnd[1] - pStart[1]) * t;
+    const alt = 4 * maxAltitude * t * (1 - t);
+    path.push([lng, lat, alt]);
+    timestamps.push(t * FLOW_BASE_DURATION);
+  }
+
+  return { path, timestamps };
+}
+
+function buildFlowTrips(links: StationFlowLink[]): Record<SpeedGroup, FlowTrip[]> {
+  const grouped: Record<SpeedGroup, FlowTrip[]> = { slow: [], normal: [], fast: [] };
+
+  for (const link of links) {
+    if (Math.abs(link.powerFlow) < 0.1) continue;
+    const speedGroup = pickSpeedGroup(link.powerFlow);
+    const altitude = 70 + link.capacityRatio * 90;
+    const { path, timestamps } = generateArcTrip(
+      link.sourcePosition,
+      link.targetPosition,
+      link.powerFlow,
+      20,
+      altitude
+    );
+
+    grouped[speedGroup].push({
+      id: `trip-${link.id}`,
+      path,
+      timestamps,
+      isV2G: link.powerFlow < 0,
+      ratio: link.capacityRatio,
+      speedGroup
+    });
+  }
+
+  return grouped;
+}
+
+function useParticleAnimation(speed = 6) {
+  const [currentTime, setCurrentTime] = useState(0);
+
+  useEffect(() => {
+    let animationFrame: number;
+
+    const animate = () => {
+      setCurrentTime((prev) => (prev + speed) % FLOW_BASE_DURATION);
+      animationFrame = requestAnimationFrame(animate);
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [speed]);
+
+  return currentTime;
+}
+
 // ---------------------------------------------------------------------------
 // DeckGL overlay (shares WebGL context with MapLibre)
 // ---------------------------------------------------------------------------
@@ -92,22 +267,46 @@ function DeckGLOverlay(props: MapboxOverlayProps & { interleaved?: boolean }) {
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-export function TripsLiveMap({ onSelectEntity }: { onSelectEntity?: (entity: any) => void }) {
+type TripsLiveMapProps = {
+  onSelectEntity?: (entity: any) => void;
+  onMapClick?: (info: MapClickInfo) => void;
+  onMapHover?: (info: MapClickInfo | null) => void;
+  stations?: ChargingStation[];
+  transformers?: TransformerEntity[];
+  snapToGrid?: boolean;
+  gridStep?: number;
+};
+
+export function TripsLiveMap({
+  onSelectEntity,
+  onMapClick,
+  onMapHover,
+  stations,
+  transformers,
+  snapToGrid = false,
+  gridStep = 0.00005
+}: TripsLiveMapProps) {
+  const resolvedStations = stations ?? CHARGING_STATIONS;
+  const resolvedTransformers = transformers ?? TRANSFORMERS;
   const STATION_MODEL_URL = "/models/charge_point.glb";
+  const TRANSFORMER_MODEL_URL = "/models/transformer.glb";
   // Tạm thời trỏ ev-model sang charge_point để chứng minh layer code đã hoạt động chuẩn
   const EV_MODEL_URL = "/models/ev-model.glb"; // TODO: Đổi lại "/models/ev-model.glb" sau khi bạn fix file model
 
   const [stationModelAvailable, setStationModelAvailable] = useState(false);
+  const [transformerModelAvailable, setTransformerModelAvailable] = useState(false);
   const [evModelAvailable, setEvModelAvailable] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     Promise.all([
       fetch(STATION_MODEL_URL, { method: "HEAD" }),
+      fetch(TRANSFORMER_MODEL_URL, { method: "HEAD" }),
       fetch(EV_MODEL_URL, { method: "HEAD" })
-    ]).then(([sr, er]) => {
+    ]).then(([sr, tr, er]) => {
       if (mounted) {
         setStationModelAvailable(sr.ok);
+        setTransformerModelAvailable(tr.ok);
         // Temporarily disable the EV model because parse-gltf crashes on the current ev-model.glb
         setEvModelAvailable(er.ok);
       }
@@ -115,7 +314,93 @@ export function TripsLiveMap({ onSelectEntity }: { onSelectEntity?: (entity: any
     return () => { mounted = false; };
   }, []);
 
+  const currentTime = useParticleAnimation(8);
+
+  const [buildingData, setBuildingData] = useState<Building[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch(DATA_URLS.buildings)
+      .then((r) => r.json())
+      .then((data: Building[]) => { if (mounted) setBuildingData(data); })
+      .catch(() => { });
+    return () => { mounted = false; };
+  }, []);
+
   const layers = useMemo(() => {
+    const flowLinks = buildTransformerLinks(resolvedTransformers, resolvedStations);
+    const flowTripsBySpeed = buildFlowTrips(flowLinks);
+
+    const transformerLayer = transformerModelAvailable
+      ? new ScenegraphLayer<TransformerEntity>({
+        id: "transformer-models",
+        data: resolvedTransformers,
+        scenegraph: TRANSFORMER_MODEL_URL,
+        getPosition: (d) => [...d.position, -50] as [number, number, number],
+        getScale: () => [2.6, 2.6, 2.6],
+        getOrientation: (d) => [0, d.heading ?? 0, 0] as [number, number, number],
+        getColor: (d) => getTransformerColor(d),
+        sizeScale: 20,
+        sizeMinPixels: 5,
+        sizeMaxPixels: 50,
+        _lighting: "pbr",
+        pickable: true,
+        autoHighlight: true
+      })
+      : new ScenegraphLayer<TransformerEntity>({
+        id: "transformer-fallback",
+        data: resolvedTransformers,
+        scenegraph: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/Box/glTF-Binary/Box.glb",
+        getPosition: (d) => [...d.position, 0] as [number, number, number],
+        getColor: (d) => getTransformerColor(d),
+        getScale: () => [8, 8, 8],
+        sizeScale: 6,
+        _lighting: "pbr",
+        pickable: true,
+        autoHighlight: true
+      });
+
+    const connectionLayer = new ArcLayer<StationFlowLink>({
+      id: "transformer-links",
+      data: flowLinks,
+      getSourcePosition: (link) => link.sourcePosition,
+      getTargetPosition: (link) => link.targetPosition,
+      getSourceColor: (link) =>
+        link.powerFlow < 0 ? [16, 185, 129, 190] : [255, 184, 92, 190],
+      getTargetColor: (link) =>
+        link.powerFlow < 0 ? [16, 185, 129, 230] : [255, 184, 92, 230],
+      getWidth: (link) => 1.5 + link.capacityRatio * 3.2,
+      widthUnits: "meters",
+      pickable: false
+    });
+
+    const flowLayers: TripsLayer<FlowTrip>[] = [];
+    (Object.keys(flowTripsBySpeed) as SpeedGroup[]).forEach((group) => {
+      const trips = flowTripsBySpeed[group];
+      if (trips.length === 0) return;
+      const speedFactor = SPEED_GROUP_FACTOR[group];
+      FLOW_OFFSETS.forEach((offset, index) => {
+        flowLayers.push(
+          new TripsLayer<FlowTrip>({
+            id: `transformer-flow-${group}-${index}`,
+            data: trips,
+            getPath: (d) => d.path,
+            getTimestamps: (d) => d.timestamps,
+            getColor: (d) => (d.isV2G ? [16, 185, 129, 255] : [255, 184, 92, 255]),
+            getWidth: (d) => 2 + d.ratio * 6,
+            widthUnits: "meters",
+            widthMinPixels: 1,
+            opacity: 0.85,
+            trailLength: 170,
+            currentTime: (currentTime * speedFactor + offset * FLOW_BASE_DURATION) % FLOW_BASE_DURATION,
+            jointRounded: true,
+            capRounded: true,
+            pickable: false
+          })
+        );
+      });
+    });
+
     return [
       // 1. Ground anchor
       new PolygonLayer<Position[]>({
@@ -143,11 +428,11 @@ export function TripsLiveMap({ onSelectEntity }: { onSelectEntity?: (entity: any
       stationModelAvailable
         ? new ScenegraphLayer<ChargingStation>({
           id: "charging-stations-model",
-          data: CHARGING_STATIONS,
+          data: resolvedStations,
           scenegraph: STATION_MODEL_URL,
           getPosition: (d) => [...d.position, 0] as [number, number, number],
           getScale: () => [3, 3, 3],
-          getOrientation: () => [0, 0, 90] as [number, number, number],
+          getOrientation: (d) => [0, d.heading || 0, 90] as [number, number, number],
           sizeScale: 20,
           sizeMinPixels: 5,
           sizeMaxPixels: 200,
@@ -157,7 +442,7 @@ export function TripsLiveMap({ onSelectEntity }: { onSelectEntity?: (entity: any
         })
         : new ScenegraphLayer<ChargingStation>({
           id: "charging-stations",
-          data: CHARGING_STATIONS,
+          data: resolvedStations,
           // Minimal fallback sphere — no GLB needed
           scenegraph: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/Box/glTF-Binary/Box.glb",
           getPosition: (d) => [...d.position, 0] as [number, number, number],
@@ -169,7 +454,12 @@ export function TripsLiveMap({ onSelectEntity }: { onSelectEntity?: (entity: any
           autoHighlight: true
         }),
 
-      // 4. Active EVs — 3D model or ScatterplotLayer fallback
+      // 4. Transformers — aggregation points
+      transformerLayer,
+      connectionLayer,
+      ...flowLayers,
+
+      // 5. Active EVs — 3D model or ScatterplotLayer fallback
       evModelAvailable
         ? new ScenegraphLayer<ActiveEV>({
           id: "active-evs-model",
@@ -201,7 +491,14 @@ export function TripsLiveMap({ onSelectEntity }: { onSelectEntity?: (entity: any
           lineWidthMinPixels: 2,
         })
     ];
-  }, [stationModelAvailable, evModelAvailable]);
+  }, [
+    stationModelAvailable,
+    transformerModelAvailable,
+    evModelAvailable,
+    resolvedStations,
+    resolvedTransformers,
+    currentTime
+  ]);
 
   // ---------------------------------------------------------------------------
   // Tooltip
@@ -212,6 +509,16 @@ export function TripsLiveMap({ onSelectEntity }: { onSelectEntity?: (entity: any
       const s = info.object as ChargingStation;
       return {
         text: `${s.name}\nTotal: ${s.totalStalls} stalls  |  In use: ${s.inUseStalls}  |  Free: ${Math.max(0, s.activeStalls - s.inUseStalls)}`
+      };
+    }
+    if (info.layer?.id?.startsWith("transformer-model") || info.layer?.id === "transformer-fallback") {
+      const transformer = info.object as TransformerEntity;
+      const loadPct = Math.round(transformer.telemetry.loadFactor * 100);
+      const drText = transformer.telemetry.drCapacityReduction > 0
+        ? `DR -${transformer.telemetry.drCapacityReduction}%`
+        : "DR idle";
+      return {
+        text: `${transformer.name}\nLoad: ${loadPct}%  |  ${drText}`
       };
     }
     if (info.layer?.id?.startsWith("active-evs")) {
@@ -226,18 +533,47 @@ export function TripsLiveMap({ onSelectEntity }: { onSelectEntity?: (entity: any
   // ---------------------------------------------------------------------------
   // Click handler
   // ---------------------------------------------------------------------------
+  const snapCoordinate = (coord: [number, number]) => {
+    if (!snapToGrid) return coord;
+    const step = gridStep > 0 ? gridStep : 0.00005;
+    return [
+      Math.round(coord[0] / step) * step,
+      Math.round(coord[1] / step) * step
+    ];
+  };
+
+  const buildMapInfo = (info: PickingInfo): MapClickInfo | null => {
+    if (!info.coordinate || info.coordinate.length < 2) return null;
+    const coord: [number, number] = [info.coordinate[0], info.coordinate[1]];
+    const snapped = snapCoordinate(coord);
+    const valid = isPositionValid(snapped, buildingData);
+    return { coordinate: snapped, isValidPosition: valid };
+  };
+
   const handleMapClick = (info: PickingInfo) => {
     if (info.object && info.layer?.id?.startsWith("charging-stations")) {
       onSelectEntity?.({ type: "STATION", id: (info.object as ChargingStation).id, data: info.object });
+    } else if (info.object && (info.layer?.id?.startsWith("transformer-model") || info.layer?.id === "transformer-fallback")) {
+      onSelectEntity?.({ type: "TRANSFORMER", id: (info.object as TransformerEntity).id, data: info.object });
     } else if (info.object && info.layer?.id?.startsWith("active-evs")) {
       onSelectEntity?.({ type: "EV", id: (info.object as ActiveEV).id, data: info.object });
     } else {
       onSelectEntity?.(null);
+      if (onMapClick) {
+        const mapInfo = buildMapInfo(info);
+        if (mapInfo) onMapClick(mapInfo);
+      }
     }
   };
 
+  const handleMapHover = (info: PickingInfo) => {
+    if (!onMapHover) return;
+    const mapInfo = buildMapInfo(info);
+    onMapHover(mapInfo);
+  };
+
   return (
-    <Map
+    <MapView
       reuseMaps
       mapStyle={MAP_STYLE}
       maxBounds={MANHATTAN_BOUNDS}
@@ -251,7 +587,8 @@ export function TripsLiveMap({ onSelectEntity }: { onSelectEntity?: (entity: any
         effects={[lightingEffect]}
         getTooltip={getTooltip}
         onClick={handleMapClick}
+        onHover={handleMapHover}
       />
-    </Map>
+    </MapView>
   );
 }

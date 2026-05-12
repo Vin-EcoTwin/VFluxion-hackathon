@@ -18,6 +18,7 @@ export type ChargingStation = {
   id: string;
   name: string;
   position: [number, number];
+  heading?: number;
   totalStalls: number;
   activeStalls: number;
   inUseStalls: number;
@@ -28,6 +29,47 @@ export type ChargingStation = {
     '7D': Financials;
   };
   fulfillment: number;
+};
+
+export type TransformerStatus = "optimal" | "warning" | "critical" | "dr_active";
+
+export type TransformerTelemetry = {
+  timestamp: string;
+  loadFactor: number;
+  inflexibleLoad: number;
+  evLoad: number;
+  pvGeneration: number;
+  netPower: number;
+  drCapacityReduction: number;
+};
+
+export type TransformerHealth = {
+  hotSpotTempC: number;
+  lossOfLifeDailyPct: number;
+};
+
+export type TransformerEvent = {
+  label: string;
+  minutesRemaining: number;
+};
+
+export type TransformerPowerPoint = {
+  time: string;
+  netPower: number;
+};
+
+export type TransformerEntity = {
+  id: string;
+  name: string;
+  position: [number, number];
+  heading?: number;
+  maxCapacityKw: number;
+  stationIds: string[];
+  telemetry: TransformerTelemetry;
+  status: TransformerStatus;
+  drEvent?: TransformerEvent;
+  health?: TransformerHealth;
+  powerHistory?: TransformerPowerPoint[];
 };
 
 // ---------------------------------------------------------------

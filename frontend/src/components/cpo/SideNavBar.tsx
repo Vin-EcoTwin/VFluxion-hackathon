@@ -1,4 +1,28 @@
+"use client";
+
+import { useStationEditorStore } from "@/stores/station-editor.store";
+
 export function SideNavBar() {
+  const mode = useStationEditorStore((state) => state.mode);
+  const setMode = useStationEditorStore((state) => state.setMode);
+  const assetType = useStationEditorStore((state) => state.assetType);
+  const setAssetType = useStationEditorStore((state) => state.setAssetType);
+  const reset = useStationEditorStore((state) => state.reset);
+
+  const isAddMode = mode === "add";
+  const isAddStation = isAddMode && assetType === "station";
+  const isAddTransformer = isAddMode && assetType === "transformer";
+  const isMoveMode = mode === "move";
+
+  const toggleAddMode = (nextType: "station" | "transformer") => {
+    if (mode === "add" && assetType === nextType) {
+      setMode("idle");
+      return;
+    }
+    setAssetType(nextType);
+    setMode("add");
+  };
+
   return (
     <nav className="hidden md:flex fixed left-0 top-16 h-[calc(100vh-64px)] w-20 hover:w-64 transition-all duration-500 z-40 bg-surface-container-low/40 backdrop-blur-lg border-r border-outline-variant/10 shadow-xl flex-col py-md gap-widget-gap group ease-in-out hover:backdrop-blur-2xl hover:bg-surface-variant/30 overflow-hidden">
 
@@ -15,7 +39,66 @@ export function SideNavBar() {
 
       <div className="w-full h-px bg-outline-variant/20 my-xs"></div>
 
-      {/* Empty space since we removed other nav tabs for now */}
+      <div className="px-md flex flex-col gap-xs">
+        <button
+          type="button"
+          onClick={() => toggleAddMode("station")}
+          className={`flex items-center gap-md px-md py-sm border-l-4 w-full transition-colors ${
+            isAddStation
+              ? "border-primary bg-primary/15 text-primary"
+              : "border-transparent text-on-surface-variant hover:text-primary-fixed hover:bg-surface-variant/50"
+          }`}
+        >
+          <span className="material-symbols-outlined shrink-0">add_location_alt</span>
+          <span className="font-label-md text-label-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+            Add station
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => toggleAddMode("transformer")}
+          className={`flex items-center gap-md px-md py-sm border-l-4 w-full transition-colors ${
+            isAddTransformer
+              ? "border-secondary bg-secondary/15 text-secondary"
+              : "border-transparent text-on-surface-variant hover:text-secondary hover:bg-surface-variant/50"
+          }`}
+        >
+          <span className="material-symbols-outlined shrink-0">electrical_services</span>
+          <span className="font-label-md text-label-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+            Add transformer
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMode(isMoveMode ? "idle" : "move")}
+          className={`flex items-center gap-md px-md py-sm border-l-4 w-full transition-colors ${
+            isMoveMode
+              ? "border-secondary bg-secondary/15 text-secondary"
+              : "border-transparent text-on-surface-variant hover:text-primary-fixed hover:bg-surface-variant/50"
+          }`}
+        >
+          <span className="material-symbols-outlined shrink-0">open_with</span>
+          <span className="font-label-md text-label-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+            Move or rotate
+          </span>
+        </button>
+
+        {(isAddMode || isMoveMode) && (
+          <button
+            type="button"
+            onClick={() => reset()}
+            className="flex items-center gap-md px-md py-sm text-on-surface-variant hover:text-on-surface border-l-4 border-transparent hover:bg-surface-variant/50 w-full transition-colors"
+          >
+            <span className="material-symbols-outlined shrink-0">close</span>
+            <span className="font-label-md text-label-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+              Exit edit mode
+            </span>
+          </button>
+        )}
+      </div>
+
       <div className="flex-1"></div>
 
       <div className="mt-auto flex flex-col gap-xs w-full">
