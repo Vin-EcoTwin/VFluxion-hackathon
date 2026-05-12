@@ -1,60 +1,88 @@
-# EcoTwin - Digital Twin Hà Nội
+# VFluxion - Hệ sinh thái Digital Twin & Quản lý Năng lượng Thông minh
 
-EcoTwin là nền tảng mô phỏng Digital Twin cho khu vực Hà Nội, được thiết kế theo hướng gọn hơn: backend FastAPI lưu trữ trực tiếp trong MongoDB, frontend Next.js hiển thị bản đồ 3D và dashboard vận hành.
+**VFluxion** là một nền tảng Digital Twin toàn diện được thiết kế để mô phỏng, giám sát và quản lý các thực thể đô thị (tập trung vào khu vực Hà Nội) và hệ thống năng lượng thông minh. Dự án kết hợp công nghệ mô phỏng 3D hiện đại, dữ liệu thời gian thực và khả năng quản lý năng lượng V2G (Vehicle-to-Grid).
 
-## Tổng quan kiến trúc
+---
 
-- Backend: FastAPI, Pydantic, Motor và WebSocket cho realtime.
-- Frontend: Next.js 15, React 18, TypeScript, deck.gl và Zustand.
-- Lưu trữ: MongoDB.
-- Docker Compose: chỉ dùng để khởi động MongoDB local với volume bền vững.
+## 🏗️ Kiến trúc Tổng thể
 
-## Chạy bằng Docker Compose
+Dự án được xây dựng theo kiến trúc Microservices/Modular giúp dễ dàng mở rộng và bảo trì:
 
-1. Cài Docker Desktop và mở terminal tại thư mục `backend`.
-2. Khởi động MongoDB:
+- **[VFluxion Backend](./backend)**: Trung tâm xử lý dữ liệu, sử dụng FastAPI (Python) và MongoDB. Cung cấp API RESTful và WebSocket cho dữ liệu thời gian thực.
+- **[VFluxion Frontend](./frontend)**: Giao diện Web Dashboard chuyên nghiệp, sử dụng Next.js 15 và Deck.gl để hiển thị bản đồ Digital Twin 3D và các chỉ số KPI.
+- **[VFluxion Mobile](./mobile)**: Ứng dụng di động dành cho chủ xe điện (EV Owners), xây dựng trên React Native (Expo) để theo dõi trạng thái xe và lợi nhuận từ việc truyền năng lượng ngược lại lưới điện (V2G).
 
-   `docker compose up -d`
+---
 
-3. Kiểm tra trạng thái container:
+## 📂 Cấu trúc Thư mục
 
-   `docker compose ps`
+## 📂 Cấu trúc Dự án
 
-4. Dừng và dọn container:
+```text
+.
+├── backend/            # Trung tâm xử lý dữ liệu (FastAPI, MongoDB)
+├── frontend/           # Dashboard quản lý Web (Next.js, Deck.gl)
+├── mobile/             # Ứng dụng di động (React Native, Expo)
+├── .github/            # Cấu hình CI/CD và GitHub Actions
+└── README.md           # Tài liệu hướng dẫn tổng thể
+```
 
-   `docker compose down`
 
-## Chạy backend
+---
 
-1. Sao chép cấu hình mẫu:
+## 🚀 Hướng dẫn Chạy nhanh (Quick Start)
 
-   `Copy-Item backend/.env.example backend/.env`
+### 1. Yêu cầu hệ thống
+- Docker & Docker Desktop.
+- Node.js (v18+) & npm/yarn.
+- Python 3.10+.
 
-2. Cấu hình `MONGODB_URI` và `DB_NAME` trong `backend/.env`.
-3. Tạo virtual environment trong `backend` và kích hoạt nó.
-4. Cài dependencies:
+### 2. Khởi động Cơ sở dữ liệu (MongoDB)
+Di chuyển vào thư mục backend và khởi động MongoDB qua Docker:
+```bash
+cd backend
+docker compose up -d
+```
 
-   `pip install -r requirements.txt`
+### 3. Khởi chạy Backend
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # Hoặc .venv\Scripts\activate trên Windows
+pip install -r requirements.txt
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+```
+*API docs sẽ khả dụng tại: `http://localhost:8000/docs`*
 
-5. Khởi chạy API:
+### 4. Khởi chạy Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*Truy cập dashboard tại: `http://localhost:3000`*
 
-   `uvicorn src.main:app --reload --host 0.0.0.0 --port 8000`
+### 5. Khởi chạy Mobile
+```bash
+cd mobile
+npm install
+npx expo start
+```
+*Sử dụng ứng dụng **Expo Go** trên điện thoại để quét mã QR.*
 
-## Chạy frontend
+---
 
-1. Mở terminal tại thư mục `frontend`.
-2. Cài package:
+## 🛠️ Điểm nổi bật của Dự án
 
-   `npm install`
+- **Real-time Synchronization**: Đồng bộ hóa dữ liệu giữa các thành phần qua WebSocket.
+- **3D Visualization**: Hiển thị mô hình thành phố và các trạm sạc dưới dạng 3D trực quan.
+- **Energy Optimization**: Thuật toán mô phỏng dòng điện và tối ưu hóa tài chính cho hệ thống V2G.
+- **Clean Architecture**: Áp dụng Domain-Driven Design (DDD) tại backend để đảm bảo code sạch và dễ mở rộng.
 
-3. Chạy ứng dụng:
+---
 
-   `npm run dev`
+## 📝 Giấy phép
+Dự án được phát triển cho mục đích nghiên cứu và triển khai giải pháp đô thị thông minh.
 
-4. Truy cập giao diện tại `http://localhost:3000`.
-
-## Điểm cần biết
-
-- Backend hiện là nguồn dữ liệu chuẩn cho entity và simulation state.
-- Frontend không còn phụ thuộc vào Eclipse Ditto.
-- Khi mở rộng Twin logic, hãy ưu tiên đặt xử lý nghiệp vụ tại backend domain layer để giữ kiến trúc sạch.
+---
+*© 2024 VFluxion Team - Mang công nghệ Digital Twin vào đời sống.*

@@ -1,96 +1,98 @@
-# Backend - FastAPI và MongoDB
+# VFluxion Backend - Trung tâm Điều phối & Xử lý Dữ liệu Twin
 
-Backend của EcoTwin được tổ chức theo hướng modular, tập trung vào nghiệp vụ cốt lõi và lưu trữ dữ liệu Twin trong MongoDB.
-## Cấu trúc chính
+**VFluxion Backend** đóng vai trò là "bộ não" của hệ thống Digital Twin, chịu trách nhiệm quản lý trạng thái của các thực thể (entities), thực hiện các kịch bản mô phỏng và cung cấp luồng dữ liệu thời gian thực cho Dashboard và Ứng dụng di động.
 
-- `src/app/api`: router REST và dependency injection.
-- `src/app/domains`: lớp nghiệp vụ và repository của từng miền dữ liệu.
-- `src/app/core`: cấu hình, logging và bảo mật.
-- `src/app/schemas`: Pydantic model cho request/response.
-- `src/app/websocket`: broadcaster và connection manager cho realtime.
-- `src/app/workers`: tác vụ nền cho mô phỏng.
+---
 
-## API hiện có
-- `GET /api/v1/health`: kiểm tra trạng thái dịch vụ.
-- `GET /api/v1/entities`: danh sách entity đang lưu trong MongoDB.
-- `POST /api/v1/entities`: tạo mới một entity.
-- `GET /api/v1/entities/{entity_id}`: đọc chi tiết một entity.
-- `POST /api/v1/simulation/run`: chạy một kịch bản mô phỏng.
-- `GET /api/v1/simulation/tick`: lấy tick mô phỏng mới nhất.
-- `WS /ws/realtime`: luồng realtime nội bộ cho dashboard.
+## 🚀 Công nghệ Sử dụng
 
-## Thiết lập môi trường
-1. Sao chép file mẫu:
+- **Ngôn ngữ:** Python 3.10+
+- **Framework:** FastAPI (hiệu suất cao, hỗ trợ Asyncio)
+- **Database:** MongoDB (lưu trữ linh hoạt các Schema Digital Twin)
+- **Real-time:** WebSockets
+- **Validation:** Pydantic v2
+- **Task Runner:** Python Background Tasks cho mô phỏng đơn giản.
 
-	`Copy-Item .env.example .env`
-2. Cấu hình MongoDB trong file `.env`:
+---
 
-	- `MONGODB_URI`: chuỗi kết nối MongoDB local hoặc MongoDB Atlas.
-	- `DB_NAME`: tên database mà backend sẽ sử dụng.
-3. Tạo virtual environment Python:
+## 📂 Cấu trúc Dự án
 
-	`python -m venv .venv`
-4. Kích hoạt môi trường ảo:
+Thư mục `src/app` được tổ chức theo hướng Modular & Domain-Driven Design:
 
-	`.venv\Scripts\Activate.ps1`
-5. Cài dependencies:
+## 📂 Cấu trúc Dự án
 
-	`pip install -r requirements.txt`
-6. Chạy backend:
+```text
+backend/
+├── src/
+│   ├── app/
+│   │   ├── api/        # Định nghĩa các REST API Endpoints (v1)
+│   │   ├── domains/    # Logic nghiệp vụ (Entities, Simulation, Grid)
+│   │   ├── schemas/    # Pydantic models (Request/Response)
+│   │   ├── websocket/  # Quản lý kết nối và broadcast realtime
+│   │   ├── core/       # Cấu hình hệ thống, Settings, Security
+│   │   ├── workers/    # Tác vụ chạy nền và xử lý mô phỏng
+│   │   └── repositories/ # Giao tiếp tầng dữ liệu (Database access)
+│   └── main.py         # Điểm khởi đầu của ứng dụng FastAPI
+├── requirements.txt    # Danh sách thư viện Python
+├── docker-compose.yml  # Cấu hình Docker (MongoDB)
+└── .env.example        # Mẫu file cấu hình môi trường
+```
 
-	`uvicorn src.main:app --reload --host 0.0.0.0 --port 8000`
-7. Mở tài liệu API:
 
-	`http://localhost:8000/docs`
+---
 
-## Ghi chú kỹ thuật
-- Backend dùng MongoDB làm nguồn dữ liệu chính cho entity.
-- Logic digital twin ở tầng service đã được tối giản để tránh phụ thuộc vào Eclipse Ditto.
-- Khi cần mở rộng, hãy đặt quy tắc nghiệp vụ tại `src/app/domains` thay vì gắn trực tiếp vào router.
-# Backend - FastAPI Digital Twin Core
+## 🛠️ Hướng dẫn Cài đặt
 
-Backend duoc to chuc theo huong modular + domain-driven de scale:
+### 1. Chuẩn bị Môi trường
+Tạo và kích hoạt môi trường ảo (Virtual Environment):
+```bash
+python -m venv .venv
+# Trên Windows:
+.venv\Scripts\Activate.ps1
+# Trên Linux/macOS:
+source .venv/bin/activate
+```
 
-- api: routers REST versioned (/api/v1/*).
-- domains: nghiep vu entities/simulation/grid.
-- ditto_integration: client giao tiep Eclipse Ditto (HTTP + WS).
-- websocket: quan ly ket noi realtime.
-- core: config, logging, security.
-- schemas: Pydantic v2 models.
+### 2. Cài đặt Thư viện
+```bash
+pip install -r requirements.txt
+```
 
-## Endpoint roadmap
+### 3. Cấu hình Biến môi trường
+Sao chép file `.env.example` thành `.env` và cập nhật thông tin:
+```bash
+cp .env.example .env
+```
+Các biến quan trọng:
+- `MONGODB_URI`: Chuỗi kết nối tới MongoDB.
+- `DB_NAME`: Tên database (mặc định: `vfluxion_db`).
 
-- GET /api/v1/health
-- GET/POST /api/v1/entities
-- POST /api/v1/simulation/run
-- GET/PUT /api/v1/ditto/things/{thing_id}
-- WS /ws/realtime
+### 4. Khởi chạy Server
+```bash
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-## Chay local
+---
 
-1. Copy env mau:
+## 📡 Danh sách API Chính
 
-	Copy-Item .env.example .env
+- **Health Check:** `GET /api/v1/health`
+- **Entities:**
+    - `GET /api/v1/entities`: Lấy danh sách thực thể Twin.
+    - `POST /api/v1/entities`: Tạo mới thực thể.
+    - `GET /api/v1/entities/{id}`: Chi tiết thực thể.
+- **Simulation:**
+    - `POST /api/v1/simulation/run`: Bắt đầu kịch bản mô phỏng.
+    - `GET /api/v1/simulation/tick`: Lấy trạng thái hiện tại của mô phỏng.
+- **Real-time:**
+    - `WS /ws/realtime`: Kênh kết nối WebSocket dữ liệu thực.
 
-2. Dan MongoDB Atlas URI vao bien MONGO_URI
-	(hoac MONGODB_ATLAS_URI) trong file .env.
-	
-3. Tao virtual environment:
+---
 
-	python -m venv .venv
+## 💡 Ghi chú Kỹ thuật
+- Hệ thống ưu tiên xử lý bất đồng bộ (Async) để tối ưu hóa hiệu suất khi có nhiều kết nối WebSocket.
+- Dữ liệu Digital Twin được lưu dưới dạng tài liệu (document) trong MongoDB để linh hoạt thay đổi thuộc tính mà không cần migrations phức tạp.
+- Logic nghiệp vụ nên được đặt trong `domains/` để đảm bảo tính tái sử dụng và dễ dàng viết Unit Test.
 
-4. Kich hoat:
-
-	.venv\Scripts\Activate.ps1
-
-5. Cai dependencies:
-
-	pip install -r requirements.txt
-
-6. Chay backend:
-
-	uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
-
-7. OpenAPI docs:
-
-	http://localhost:8000/docs
+---
+*© 2024 VFluxion Backend Team.*
