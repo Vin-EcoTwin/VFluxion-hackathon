@@ -63,7 +63,7 @@ export const HANOI_MOCK_BUILDINGS: BuildingTwinModel[] = [
   },
   {
     id: "bld-command-campus",
-    name: "EcoTwin Command Campus",
+    name: "VFluxion Command Campus",
     category: "command",
     footprint: rectangleFootprint(105.8529, 21.0285, 0.00024, 0.00016),
     height: 65,
@@ -73,7 +73,7 @@ export const HANOI_MOCK_BUILDINGS: BuildingTwinModel[] = [
 
 export const HANOI_COMMAND_CENTER: CommandCenterEntity = {
   id: "command-center-hn-core",
-  name: "EcoTwin Command Center",
+  name: "VFluxion Command Center",
   lng: 105.8529,
   lat: 21.0285,
   radiusMeters: 95,

@@ -2,7 +2,7 @@ export const API_BASE_URL = "http://localhost:8000/api/v1";
 
 export const WS_URL = "ws://localhost:8000/ws/realtime";
 
-export const TWIN_NAMESPACE = "ecotwin.hanoi";
+export const TWIN_NAMESPACE = "vfluxion.hanoi";
 
 export const MODEL_URLS = {
   electricCar:

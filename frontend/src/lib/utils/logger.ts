@@ -2,12 +2,12 @@ type LogPayload = unknown;
 
 export const logger = {
   info: (message: string, payload?: LogPayload) => {
-    console.info(`[EcoTwin] ${message}`, payload);
+    console.info(`[VFluxion] ${message}`, payload);
   },
   warn: (message: string, payload?: LogPayload) => {
-    console.warn(`[EcoTwin] ${message}`, payload);
+    console.warn(`[VFluxion] ${message}`, payload);
   },
   error: (message: string, payload?: LogPayload) => {
-    console.error(`[EcoTwin] ${message}`, payload);
+    console.error(`[VFluxion] ${message}`, payload);
   }
 };

@@ -30,7 +30,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         <View style={styles.logoIcon}>
           <MaterialIcons name="bolt" size={40} color={colors.onPrimary} />
         </View>
-        <Text style={styles.title}>GridFlow</Text>
+        <Text style={styles.title}>VFluxion GridFlow</Text>
         <Text style={styles.subtitle}>EV Owner Dashboard</Text>
       </View>
 
@@ -70,9 +70,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.footer}>
-        Powered by EcoTwin Digital Twin Platform
-      </Text>
+      <Text style={styles.footer}>POWERED BY VFLUXION TEAM</Text>
     </KeyboardAvoidingView>
   );
 };

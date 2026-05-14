@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-  app_name: str = "EcoTwin Backend"
+  app_name: str = "VFluxion Backend"
   api_v1_prefix: str = "/api/v1"
 
   backend_host: str = "0.0.0.0"

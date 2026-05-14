@@ -136,7 +136,7 @@ export const mockEvOwnerDashboard: EvOwnerDashboard = {
 // ---------------------------------------------------------------------------
 
 export const mockEvOwnerVehicle: EvOwnerVehicle = {
-  vehicleName: 'EcoTwin EV • Model S',
+  vehicleName: 'VFluxion EV • Model S',
   vinMasked: '5YJ3•••••••A12345',
   batteryCapacityKwh: 78.0,
   estimatedRangeKm: 412,
@@ -160,7 +160,7 @@ export const mockEvOwnerFinancialsSummary: EvOwnerFinancialsSummary = {
 
 export const mockEvOwnerSettings: EvOwnerSettings = {
   accountName: 'EV Owner',
-  defaultVehicleName: 'EcoTwin EV • Model S',
+  defaultVehicleName: 'VFluxion EV • Model S',
   currency: 'USD',
   homeGridRegion: 'Hanoi (VN)',
   notificationsEnabled: true,

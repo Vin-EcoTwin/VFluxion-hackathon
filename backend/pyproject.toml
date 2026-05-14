@@ -1,5 +1,5 @@
 [project]
-name = "ecotwin-backend"
+name = "vfluxion-backend"
 version = "0.1.0"
 description = "Digital Twin V2G backend powered by FastAPI and MongoDB"
 requires-python = ">=3.11"
