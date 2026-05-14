@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { OverviewScreen } from '../screens/OverviewScreen';
 import { VehicleScreen } from '../screens/VehicleScreen';
@@ -22,6 +22,21 @@ const TAB_ICONS: Record<TabRouteName, MaterialIconName> = {
   Settings: 'settings',
 };
 
+const TabButton = ({ accessibilityState, children, style, ...props }: any) => {
+  const isActive = accessibilityState?.selected;
+
+  return (
+    <Pressable
+      {...props}
+      accessibilityState={accessibilityState}
+      android_ripple={{ color: colors.primaryContainer, borderless: false }}
+      style={[style, styles.tabButton, isActive && styles.activeTabButton]}
+    >
+      {children}
+    </Pressable>
+  );
+};
+
 export const MainTabs: React.FC = () => {
   return (
     <Tab.Navigator
@@ -32,8 +47,8 @@ export const MainTabs: React.FC = () => {
         tabBarLabelStyle: styles.tabLabel,
         tabBarActiveTintColor: colors.onSecondaryContainer,
         tabBarInactiveTintColor: colors.onSurfaceVariant,
-        tabBarActiveBackgroundColor: colors.secondaryContainer,
         tabBarItemStyle: styles.tabItem,
+        tabBarButton: (props) => <TabButton {...props} />,
         tabBarIcon: ({ color, size }) => {
           const routeName = route.name as TabRouteName;
           const iconName = TAB_ICONS[routeName];
@@ -70,9 +85,16 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radii.md,
   },
   tabItem: {
-    borderRadius: radii.full,
+    backgroundColor: 'transparent',
+  },
+  tabButton: {
+    borderRadius: 12,
     marginHorizontal: spacing.xs,
     paddingVertical: spacing.xs,
+    overflow: 'hidden',
+  },
+  activeTabButton: {
+    backgroundColor: colors.secondaryContainer,
   },
   tabLabel: {
     ...typography.labelMd,

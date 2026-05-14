@@ -9,6 +9,6 @@ router = APIRouter(prefix="/health", tags=["health"])
 async def health_check():
   return {
     "status": "ok",
-    "service": "ecotwin-backend",
+    "service": "vfluxion-backend",
     "timestamp": datetime.now(timezone.utc).isoformat(),
   }

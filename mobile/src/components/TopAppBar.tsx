@@ -7,7 +7,7 @@ interface TopAppBarProps {
   title?: string;
 }
 
-export const TopAppBar: React.FC<TopAppBarProps> = ({ title = 'GridFlow' }) => {
+export const TopAppBar: React.FC<TopAppBarProps> = ({ title = 'VFluxion GridFlow' }) => {
   return (
     <View style={[styles.container, shadows.atmospheric]}>
       <View style={styles.inner}>

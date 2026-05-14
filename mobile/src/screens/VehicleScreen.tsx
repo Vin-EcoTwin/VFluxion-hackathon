@@ -13,8 +13,16 @@ import { colors, spacing, typography, radii, shadows } from '../theme';
 
 export const VehicleScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const { soc, timeline } = mockEvOwnerDashboard;
+  const { soc, energy, timeline } = mockEvOwnerDashboard;
   const vehicle = mockEvOwnerVehicle;
+
+  // Derived metrics from ev-owner data mapped to CPO schema fields
+  const batteryHealthPct = Math.round(
+    (vehicle.batteryCapacityKwh / 82.0) * 100 // 82kWh is nominal for Model S class
+  );
+  const motorEfficiencyPct = energy.v2gActive
+    ? Math.round((Math.abs(energy.realTimeFlowKw) / vehicle.maxChargePowerKw) * 100)
+    : Math.round((vehicle.currentChargePowerKw / vehicle.maxChargePowerKw) * 100);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -28,12 +36,14 @@ export const VehicleScreen: React.FC = () => {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── State of Charge Gauge (SoC) ──────────────────────────── */}
         <SoCGauge
           percentage={soc.percentage}
           statusLabel={soc.statusLabel}
           targetDepartureTime={soc.targetDepartureTime}
         />
 
+        {/* ── Bento Grid: Battery Capacity + Estimated Range ───────── */}
         <View style={styles.bentoGrid}>
           <BentoCard>
             <View style={styles.metricTopRow}>
@@ -68,6 +78,42 @@ export const VehicleScreen: React.FC = () => {
           </BentoCard>
         </View>
 
+        {/* ── Bento Grid: Battery Health (SoH) + Motor Efficiency ──── */}
+        <View style={styles.bentoGrid}>
+          <BentoCard>
+            <View style={styles.metricTopRow}>
+              <View style={[styles.metricIconCircle, { backgroundColor: colors.secondaryContainer }]}>
+                <MaterialIcons name="favorite" size={20} color={colors.secondary} />
+              </View>
+              <MaterialIcons name="info-outline" size={16} color={colors.onSurfaceVariant} />
+            </View>
+            <View style={styles.metricBottom}>
+              <Text style={styles.metricLabel}>Battery Health (SoH)</Text>
+              <Text style={[styles.metricValue, { color: batteryHealthPct > 85 ? colors.primary : colors.error }]}>
+                {batteryHealthPct}
+                <Text style={styles.metricUnit}>%</Text>
+              </Text>
+            </View>
+          </BentoCard>
+
+          <BentoCard>
+            <View style={styles.metricTopRow}>
+              <View style={[styles.metricIconCircle, { backgroundColor: colors.secondaryContainer }]}>
+                <MaterialIcons name="electric-bolt" size={20} color={colors.secondary} />
+              </View>
+              <MaterialIcons name="info-outline" size={16} color={colors.onSurfaceVariant} />
+            </View>
+            <View style={styles.metricBottom}>
+              <Text style={styles.metricLabel}>Motor Efficiency</Text>
+              <Text style={styles.metricValue}>
+                {motorEfficiencyPct}
+                <Text style={styles.metricUnit}>%</Text>
+              </Text>
+            </View>
+          </BentoCard>
+        </View>
+
+        {/* ── Stay / Session Timeline ───────────────────────────────── */}
         <StatusTimeline
           connectedAt={timeline.connectedAt}
           currentAt={timeline.currentAt}
@@ -75,25 +121,63 @@ export const VehicleScreen: React.FC = () => {
           progress={timeline.progress}
         />
 
+        {/* ── Real-time Diagnostics Card ────────────────────────────── */}
+        <View style={[styles.detailsCard, shadows.atmospheric]}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Real-Time Diagnostics</Text>
+            <MaterialIcons name="sensors" size={24} color={colors.onSurfaceVariant} />
+          </View>
+          <View style={styles.detailsRows}>
+            <InfoRow
+              icon="bolt"
+              label="Real-Time Flow"
+              value={`${energy.realTimeFlowKw > 0 ? '+' : ''}${energy.realTimeFlowKw.toFixed(1)} kW`}
+            />
+            <InfoRow
+              icon="electric-bolt"
+              label="Charge Power"
+              value={`${vehicle.currentChargePowerKw.toFixed(1)} / ${vehicle.maxChargePowerKw.toFixed(0)} kW`}
+            />
+            <InfoRow
+              icon="power"
+              label="Charge Status"
+              value={vehicle.plugStatusLabel}
+            />
+            <InfoRow
+              icon={energy.v2gActive ? 'swap-vert' : 'power-off'}
+              label="V2G Mode"
+              value={energy.v2gActive ? 'Active (Exporting)' : 'Inactive'}
+            />
+            <InfoRow
+              icon="flag"
+              label="Target SoC"
+              value={`${vehicle.targetSocPercentage}%`}
+            />
+          </View>
+        </View>
+
+        {/* ── Vehicle Details Card ──────────────────────────────────── */}
         <View style={[styles.detailsCard, shadows.atmospheric]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Vehicle Details</Text>
             <MaterialIcons name="electric-car" size={24} color={colors.onSurfaceVariant} />
           </View>
-
           <View style={styles.detailsRows}>
             <InfoRow icon="directions-car" label="Vehicle" value={vehicle.vehicleName} />
-            <InfoRow icon="badge" label="VIN" value={vehicle.vinMasked} />
-            <InfoRow icon="speed" label="Odometer" value={`${vehicle.odometerKm.toLocaleString()} km`} />
-            <InfoRow icon="power" label="Charging" value={vehicle.plugStatusLabel} />
-            <InfoRow icon="ev-station" label="Charger" value={vehicle.chargerLocationLabel} />
+            <InfoRow icon="badge"          label="VIN"     value={vehicle.vinMasked} />
+            <InfoRow icon="speed"          label="Odometer" value={`${vehicle.odometerKm.toLocaleString()} km`} />
+            <InfoRow icon="ev-station"     label="Charger"  value={vehicle.chargerLocationLabel} />
             <InfoRow
-              icon="bolt"
-              label="Power"
-              value={`${vehicle.currentChargePowerKw.toFixed(1)} / ${vehicle.maxChargePowerKw.toFixed(0)} kW`}
+              icon="local-gas-station"
+              label="Energy Transferred"
+              value={`${energy.energyTransferredKwh.toFixed(1)} kWh`}
             />
-            <InfoRow icon="flag" label="Target SoC" value={`${vehicle.targetSocPercentage}%`} />
           </View>
+        </View>
+
+        {/* ── POWERED BY VFLUXION TEAM Footer ──────────────────────── */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>POWERED BY VFLUXION TEAM</Text>
         </View>
       </ScrollView>
     </View>
@@ -165,5 +249,17 @@ const styles = StyleSheet.create({
   },
   detailsRows: {
     gap: spacing.sm,
+  },
+  footer: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
+  footerText: {
+    ...typography.labelMd,
+    fontSize: 10,
+    letterSpacing: 2,
+    color: colors.onSurfaceVariant,
+    textTransform: 'uppercase',
+    fontWeight: '600',
   },
 });

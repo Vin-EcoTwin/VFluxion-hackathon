@@ -21,7 +21,7 @@ type TranslationKey =
 
 const translations: Record<AppLanguage, Record<TranslationKey, string>> = {
   en: {
-    "app.title": "EcoTwin Hanoi Command",
+    "app.title": "VFluxion Hanoi Command",
     "app.subtitle": "Digital Twin Operations for V2G Corridor",
     "control.hideMap": "Hide 3D Map",
     "control.showMap": "Show 3D Map",
@@ -40,7 +40,7 @@ const translations: Record<AppLanguage, Record<TranslationKey, string>> = {
     "panel.stream": "Realtime Stream"
   },
   vi: {
-    "app.title": "Trung Tam Dieu Hanh EcoTwin Ha Noi",
+    "app.title": "Trung Tam Dieu Hanh VFluxion Ha Noi",
     "app.subtitle": "Van hanh Digital Twin cho hanh lang V2G",
     "control.hideMap": "An ban do 3D",
     "control.showMap": "Hien ban do 3D",

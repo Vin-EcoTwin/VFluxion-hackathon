@@ -3,8 +3,8 @@
 import { useEffect } from "react";
 import { useUIStore } from "@/stores/ui.store";
 
-const THEME_KEY = "ecotwin-theme";
-const LANGUAGE_KEY = "ecotwin-language";
+const THEME_KEY = "vfluxion-theme";
+const LANGUAGE_KEY = "vfluxion-language";
 
 export function useAppPreferences() {
   const theme = useUIStore((state) => state.theme);

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "GridFlow",
-    "slug": "gridflow-ev-owner",
+    "name": "VFluxion GridFlow",
+    "slug": "vfluxion-gridflow-ev-owner",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,14 +14,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ecotwin.gridflow"
+      "bundleIdentifier": "com.vfluxion.gridflow"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#f8f9ff"
       },
-      "package": "com.ecotwin.gridflow"
+      "package": "com.vfluxion.gridflow"
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -25,7 +25,7 @@ setup_logging(settings.backend_log_level)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-  logger.info("Starting EcoTwin backend")
+  logger.info("Starting VFluxion backend")
   task = asyncio.create_task(
     simulation_tick_worker(
       manager=websocket_manager,
@@ -44,11 +44,11 @@ async def lifespan(_: FastAPI):
       logger.info("Simulation worker cancelled")
 
     await close_runtime_resources()
-    logger.info("EcoTwin backend stopped")
+    logger.info("VFluxion backend stopped")
 
 
 app = FastAPI(
-  title="EcoTwin Backend",
+  title="VFluxion Backend",
   description="Digital Twin V2G backend for Hanoi smart-grid simulation",
   version="0.1.0",
   lifespan=lifespan,
@@ -73,7 +73,7 @@ async def realtime_socket(websocket: WebSocket):
       websocket,
       MessageEnvelope(
         channel="system.connected",
-        payload={"message": "Connected to EcoTwin realtime stream"},
+        payload={"message": "Connected to VFluxion realtime stream"},
       ).model_dump(mode="json"),
     )
 

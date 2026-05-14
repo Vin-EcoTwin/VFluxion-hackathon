@@ -1,86 +1,94 @@
-# VFluxion Mobile - Ứng dụng Quản lý Xe điện & Năng lượng V2G
+# VFluxion GridFlow Mobile
 
-**VFluxion Mobile** là ứng dụng di động dành riêng cho chủ sở hữu xe điện (EV) trong hệ sinh thái VFluxion. Ứng dụng cho phép người dùng giám sát trạng thái pin, hiệu suất sạc và đặc biệt là quản lý dòng tiền khi tham gia vào hệ thống V2G (Vehicle-to-Grid) - truyền năng lượng từ xe vào lưới điện.
+VFluxion GridFlow Mobile is the React Native and Expo application for EV owners in the VFluxion ecosystem. It helps users monitor vehicle battery status, session timelines, V2G energy flow, and financial outcomes from bidirectional charging.
 
----
+## Features
 
-## 📱 Tính năng Chính
+| Area | Description |
+| --- | --- |
+| Overview | Real-time state of charge, power flow, session progress, and quick V2G financial summary. |
+| Vehicle | Vehicle health, estimated range, charge power, VIN display, charger status, and diagnostics. |
+| Financials | Charging costs, V2G earnings, exported energy, session history, and payout estimates. |
+| Settings | Account preferences, grid region, notifications, auto-optimization, and refresh interval. |
 
-- **Giám sát SoC (State of Charge)**: Theo dõi dung lượng pin thời gian thực với giao diện vòng tròn (gauge) trực quan.
-- **Quản lý V2G**: Xem chi tiết lợi nhuận kiếm được khi bán điện ngược lại cho lưới điện.
-- **Lịch trình Stay Duration**: Theo dõi thời gian kết nối trạm sạc và dự kiến thời gian hoàn thành.
-- **Real-time Flow**: Hiển thị dòng năng lượng đang sạc hoặc đang xả theo thời gian thực.
-- **Thiết kế Premium**: Giao diện theo phong cách "Eco-Corporate Minimalism" với hiệu ứng đổ bóng atmospheric và màu xanh đặc trưng.
+## Tech Stack
 
----
+- React Native with Expo SDK 54
+- TypeScript
+- React Navigation with native stack and bottom tabs
+- `react-native-svg` for gauges and chart visuals
+- Space Grotesk via Expo Google Fonts
+- Material Icons via `@expo/vector-icons`
 
-## 🛠️ Công nghệ Sử dụng
-
-- **Framework:** React Native + Expo SDK 54
-- **Ngôn ngữ:** TypeScript
-- **Navigation:** React Navigation (Native Stack + Bottom Tabs)
-- **Đồ họa:** `react-native-svg` cho các biểu đồ và gauge.
-- **Typography:** Space Grotesk (Google Fonts).
-- **Icons:** MaterialIcons (via `@expo/vector-icons`).
-
----
-
-## 📂 Cấu trúc Thư mục
-
-## 📂 Cấu trúc Dự án
+## Project Structure
 
 ```text
 mobile/
 ├── src/
-│   ├── screens/        # Các màn hình ứng dụng (Overview, Login,...)
-│   ├── components/     # Components UI (SoCGauge, BentoCard,...)
-│   ├── navigation/     # Cấu hình định tuyến (Tabs, Stacks)
-│   ├── theme/          # Design system (Colors, Typo, Spacing)
-│   ├── data/           # Mock data và interfaces
-│   └── assets/         # Tài nguyên tĩnh (Fonts, Images)
-├── App.tsx             # Root component của ứng dụng
-├── app.json            # Cấu hình Expo project
-└── package.json        # Dependencies và scripts
+│   ├── components/        # Reusable UI components
+│   ├── data/              # Mock EV owner data and interfaces
+│   ├── navigation/        # Root stack and bottom tab navigation
+│   ├── screens/           # Login, Overview, Vehicle, Financials, Settings
+│   └── theme/             # Color, spacing, radius, shadow, typography tokens
+├── App.tsx                # Expo application root
+├── app.json               # Expo app configuration
+├── package.json           # Scripts and dependencies
+└── README.md
 ```
 
+## Installation
 
----
+Run commands from the repository root unless noted otherwise.
 
-## 🚀 Hướng dẫn Cài đặt & Chạy
-
-### 1. Cài đặt Dependencies
-Di chuyển vào thư mục `mobile` và cài đặt các gói cần thiết:
 ```bash
+cd mobile
 npm install
 ```
 
-### 2. Khởi chạy Ứng dụng
-Sử dụng Expo CLI để bắt đầu:
+## Development
+
+Start the Expo development server:
+
+```bash
+npm start
+```
+
+Common launch targets:
+
+```bash
+npm run android
+npm run ios
+npm run web
+```
+
+You can also run:
+
 ```bash
 npx expo start
 ```
 
-### 3. Xem trên Thiết bị
-- **Android/iOS**: Tải ứng dụng **Expo Go** từ Store và quét mã QR hiển thị trên Terminal.
-- **Web**: Nhấn phím `w` trên Terminal để mở phiên bản Web (nếu cần preview nhanh).
+Then scan the QR code with Expo Go on a physical device, open an emulator, or press `w` in the terminal for a web preview.
 
----
+## Configuration
 
-## 🎨 Hệ thống Thiết kế (Design System)
+The Expo app is configured in `app.json` with:
 
-Ứng dụng tuân thủ nghiêm ngặt bảng quy tắc thiết kế nhằm mang lại trải nghiệm cao cấp:
-- **Màu sắc chính**: Xanh lá cây đậm (#006C49) đại diện cho năng lượng sạch.
-- **Typography**: Sử dụng font chữ Space Grotesk cho mọi cấp độ văn bản.
-- **Spacing**: Hệ thống lưới 4pt (4, 8, 16, 24, 32px).
-- **Radius**: Bo góc 16px cho các Card và Pill-shape cho các nút bấm.
+- App name: `VFluxion GridFlow`
+- Slug: `vfluxion-gridflow-ev-owner`
+- iOS bundle identifier: `com.vfluxion.gridflow`
+- Android package: `com.vfluxion.gridflow`
 
----
+## Branding
 
-## 📡 Tích hợp Dữ liệu
-Dữ liệu trong ứng dụng được chuẩn hóa để dễ dàng kết nối với VFluxion Backend:
-- `SoCStatus`: Trạng thái pin và thời gian khởi hành.
-- `EnergyInsights`: Thông số kỹ thuật về dòng điện Kwh, Kw.
-- `V2GFinancials`: Theo dõi lợi nhuận Usd.
+All mobile views should use the footer credit:
 
----
-*© 2024 VFluxion Mobile Team.*
+```text
+POWERED BY VFLUXION TEAM
+```
+
+## Notes
+
+- Bottom tab navigation uses a rounded active indicator for a softer modern tab state.
+- Mock data lives in `src/data/ev-owner.ts` and is shaped to align with future VFluxion backend API responses.
+
+POWERED BY VFLUXION TEAM

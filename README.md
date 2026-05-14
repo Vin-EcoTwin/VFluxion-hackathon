@@ -85,4 +85,4 @@ npx expo start
 Dự án được phát triển cho mục đích nghiên cứu và triển khai giải pháp đô thị thông minh.
 
 ---
-*© 2024 VFluxion Team - Mang công nghệ Digital Twin vào đời sống.*
+*© 2026 VFluxion Team - Mang công nghệ Digital Twin vào đời sống.*
