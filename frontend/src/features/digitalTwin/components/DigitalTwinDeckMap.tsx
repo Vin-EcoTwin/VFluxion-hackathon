@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AmbientLight,
   type DeckProps,
+  FlyToInterpolator,
+  type MapViewState,
   LightingEffect,
+  TRANSITION_EVENTS,
+  type ViewStateChangeParameters,
   _SunLight as SunLight,
 } from "@deck.gl/core";
 import { TileLayer, TripsLayer } from "@deck.gl/geo-layers";
@@ -45,6 +49,17 @@ type DigitalTwinDeckMapProps = {
   scene: TwinSceneState;
   onCreateAtCoordinate: (position: LngLatAlt) => void;
   onSelectThing: (thing: TwinThing | null) => void;
+};
+
+type CinematicTourStatus = "idle" | "running" | "paused";
+
+type CinematicTourStop = {
+  id: string;
+  name: string;
+  position: LngLatAlt;
+  zoom?: number;
+  pitch?: number;
+  bearing?: number;
 };
 
 function batteryColor(level: number): [number, number, number, number] {
@@ -124,19 +139,220 @@ function makeParkedEVs(stations: ChargingStationThing[]): ParkedEVDatum[] {
   return parked;
 }
 
-const INITIAL_VIEW_STATE: DeckProps["initialViewState"] = {
+const TOUR_FLY_DURATION_MS = 5200;
+const TOUR_DWELL_DURATION_MS = 2600;
+
+const INITIAL_VIEW_STATE: MapViewState = {
   longitude: HANOI_CENTER[0],
   latitude: HANOI_CENTER[1],
   zoom: 14.9,
   pitch: 58,
   bearing: -17,
   minZoom: 12,
-  maxZoom: 18
+  maxZoom: 18,
+  maxPitch: 60
 };
 
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function stripTransition(viewState: MapViewState): MapViewState {
+  return {
+    ...INITIAL_VIEW_STATE,
+    longitude: viewState.longitude,
+    latitude: viewState.latitude,
+    zoom: viewState.zoom,
+    pitch: viewState.pitch,
+    bearing: viewState.bearing
+  };
+}
+
+function hasUserCameraInput(params: ViewStateChangeParameters<MapViewState>): boolean {
+  const { interactionState } = params;
+  return Boolean(
+    interactionState.isDragging ||
+      interactionState.isPanning ||
+      interactionState.isRotating ||
+      interactionState.isZooming
+  );
+}
+
+function buildCinematicTourStops(scene: TwinSceneState): CinematicTourStop[] {
+  // Plug in your own hand-authored city landmarks here if you want total art direction.
+  // Example:
+  // return [
+  //   { id: "lake", name: "Hoan Kiem Lake", position: [105.852, 21.028, 0], zoom: 16.2, pitch: 58, bearing: -35 },
+  //   { id: "tower", name: "Signature Tower", position: [105.849, 21.029, 0], zoom: 16.6, pitch: 54, bearing: 42 }
+  // ];
+  const tallestBuildings = [...scene.buildings]
+    .sort((a, b) => b.height - a.height)
+    .slice(0, 3)
+    .map((building, index) => ({
+      id: building.id,
+      name: building.name,
+      position: building.position,
+      zoom: 16.15 + index * 0.08
+    }));
+
+  const utilityStops = [
+    {
+      id: scene.controlCenter.id,
+      name: scene.controlCenter.name,
+      position: scene.controlCenter.position,
+      zoom: 16.2,
+      pitch: 58,
+      bearing: -25
+    },
+    ...scene.chargingStations.slice(0, 3).map((station, index) => ({
+      id: station.id,
+      name: station.name,
+      position: station.position,
+      zoom: 16.35,
+      pitch: 52 + (index % 2) * 4
+    })),
+    ...scene.substations.slice(0, 2).map((substation) => ({
+      id: substation.id,
+      name: substation.name,
+      position: substation.position,
+      zoom: 16.05,
+      pitch: 56
+    }))
+  ];
+
+  return [...utilityStops, ...tallestBuildings];
+}
+
+function toCinematicViewState(stop: CinematicTourStop, index: number): MapViewState {
+  return {
+    ...INITIAL_VIEW_STATE,
+    longitude: stop.position[0],
+    latitude: stop.position[1],
+    zoom: stop.zoom ?? 16.1,
+    pitch: stop.pitch ?? 48 + (index % 3) * 5,
+    bearing: stop.bearing ?? -45 + ((index * 67) % 180)
+  };
+}
+
 export function DigitalTwinDeckMap({ scene, onCreateAtCoordinate, onSelectThing }: DigitalTwinDeckMapProps) {
+  const [viewState, setViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
+  const [tourStatus, setTourStatus] = useState<CinematicTourStatus>("idle");
+  const [activeTourStopName, setActiveTourStopName] = useState<string>("");
+
+  const tourStops = useMemo(() => buildCinematicTourStops(scene), [scene]);
+  const tourStopsRef = useRef<CinematicTourStop[]>(tourStops);
+  const tourTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tourRunIdRef = useRef(0);
+  const tourActiveRef = useRef(false);
+  const tourAutostartedRef = useRef(false);
+
   const parkedEvs = useMemo(() => makeParkedEVs(scene.chargingStations), [scene.chargingStations]);
   const gridArcs = useMemo(() => makeGridArcs(scene), [scene]);
+
+  useEffect(() => {
+    tourStopsRef.current = tourStops;
+  }, [tourStops]);
+
+  const clearTourTimeout = useCallback(() => {
+    if (tourTimeoutRef.current) {
+      clearTimeout(tourTimeoutRef.current);
+      tourTimeoutRef.current = null;
+    }
+  }, []);
+
+  const stopTour = useCallback(
+    (status: Exclude<CinematicTourStatus, "running"> = "idle", finalViewState?: MapViewState) => {
+      tourRunIdRef.current += 1;
+      tourActiveRef.current = false;
+      clearTourTimeout();
+      setTourStatus(status);
+      setViewState((current) => stripTransition(finalViewState ?? current));
+    },
+    [clearTourTimeout]
+  );
+
+  const flyToTourStop = useCallback(
+    function flyToTourStop(index: number, runId: number) {
+      const stops = tourStopsRef.current;
+      if (!tourActiveRef.current || tourRunIdRef.current !== runId || stops.length === 0) {
+        return;
+      }
+
+      const safeIndex = index % stops.length;
+      const stop = stops[safeIndex];
+      const nextViewState = toCinematicViewState(stop, safeIndex);
+
+      setActiveTourStopName(stop.name);
+      setTourStatus("running");
+      setViewState({
+        ...nextViewState,
+        transitionDuration: TOUR_FLY_DURATION_MS,
+        transitionInterpolator: new FlyToInterpolator({ speed: 1.05, curve: 1.5, maxDuration: 7000 }),
+        transitionEasing: easeInOutCubic,
+        transitionInterruption: TRANSITION_EVENTS.BREAK,
+        onTransitionEnd: () => {
+          if (!tourActiveRef.current || tourRunIdRef.current !== runId) {
+            return;
+          }
+
+          tourTimeoutRef.current = setTimeout(() => {
+            flyToTourStop(safeIndex + 1, runId);
+          }, TOUR_DWELL_DURATION_MS);
+        },
+        onTransitionInterrupt: () => {
+          if (tourRunIdRef.current === runId) {
+            stopTour("paused");
+          }
+        }
+      });
+    },
+    [stopTour]
+  );
+
+  const startTour = useCallback(() => {
+    if (tourStopsRef.current.length === 0) {
+      return;
+    }
+
+    clearTourTimeout();
+    const runId = tourRunIdRef.current + 1;
+    tourRunIdRef.current = runId;
+    tourActiveRef.current = true;
+    flyToTourStop(0, runId);
+  }, [clearTourTimeout, flyToTourStop]);
+
+  useEffect(() => {
+    if (tourAutostartedRef.current || tourStops.length === 0) {
+      return;
+    }
+
+    tourAutostartedRef.current = true;
+    const timer = setTimeout(startTour, 900);
+
+    return () => clearTimeout(timer);
+  }, [startTour, tourStops.length]);
+
+  useEffect(
+    () => () => {
+      tourRunIdRef.current += 1;
+      tourActiveRef.current = false;
+      clearTourTimeout();
+    },
+    [clearTourTimeout]
+  );
+
+  const handleViewStateChange = useCallback(
+    (params: ViewStateChangeParameters<MapViewState>) => {
+      if (tourActiveRef.current && hasUserCameraInput(params)) {
+        stopTour("paused", params.viewState);
+        return params.viewState;
+      }
+
+      setViewState(params.viewState);
+      return params.viewState;
+    },
+    [stopTour]
+  );
 
   const lightingEffect = useMemo(() => {
     const ambientLight = new AmbientLight({ color: [255, 255, 255], intensity: 1.05 });
@@ -337,54 +553,90 @@ export function DigitalTwinDeckMap({ scene, onCreateAtCoordinate, onSelectThing 
   }, [gridArcs, parkedEvs, scene]);
 
   return (
-    <DeckGL
-      layers={layers}
-      initialViewState={INITIAL_VIEW_STATE}
-      effects={[lightingEffect]}
-      controller={{
-        dragRotate: true,
-        touchRotate: true,
-        keyboard: true,
-        inertia: true,
-        doubleClickZoom: true
-      }}
-      getTooltip={({ object }) => {
-        if (!object) {
-          return null;
-        }
-        const candidate = object as Partial<TwinThing>;
-        if (candidate.type && candidate.name) {
-          return {
-            text: `${candidate.name} (${candidate.type})`
-          };
-        }
-
-        const arc = object as Partial<GridArcDatum>;
-        if (typeof arc.loadLevel === "number") {
-          return {
-            text: `Grid load ${(arc.loadLevel * 100).toFixed(0)}%`
-          };
-        }
-
-        return null;
-      }}
-      onClick={(info: PickingInfo) => {
-        const coordinate = info.coordinate;
-
-        if (info.object) {
-          const candidate = info.object as Partial<TwinThing>;
-          if (candidate.type && candidate.thingId) {
-            onSelectThing(candidate as TwinThing);
-            return;
+    <div className="relative h-full w-full">
+      <DeckGL
+        layers={layers}
+        viewState={viewState}
+        onViewStateChange={handleViewStateChange as DeckProps["onViewStateChange"]}
+        effects={[lightingEffect]}
+        controller={{
+          dragRotate: true,
+          touchRotate: true,
+          keyboard: true,
+          inertia: true,
+          doubleClickZoom: true
+        }}
+        getTooltip={({ object }) => {
+          if (!object) {
+            return null;
           }
-        }
+          const candidate = object as Partial<TwinThing>;
+          if (candidate.type && candidate.name) {
+            return {
+              text: `${candidate.name} (${candidate.type})`
+            };
+          }
 
-        onSelectThing(null);
+          const arc = object as Partial<GridArcDatum>;
+          if (typeof arc.loadLevel === "number") {
+            return {
+              text: `Grid load ${(arc.loadLevel * 100).toFixed(0)}%`
+            };
+          }
 
-        if (coordinate && coordinate.length >= 2) {
-          onCreateAtCoordinate([coordinate[0], coordinate[1], 0]);
-        }
-      }}
-    />
+          return null;
+        }}
+        onClick={(info: PickingInfo) => {
+          if (tourActiveRef.current) {
+            stopTour("paused");
+          }
+
+          const coordinate = info.coordinate;
+
+          if (info.object) {
+            const candidate = info.object as Partial<TwinThing>;
+            if (candidate.type && candidate.thingId) {
+              onSelectThing(candidate as TwinThing);
+              return;
+            }
+          }
+
+          onSelectThing(null);
+
+          if (coordinate && coordinate.length >= 2) {
+            onCreateAtCoordinate([coordinate[0], coordinate[1], 0]);
+          }
+        }}
+      />
+
+      {tourStops.length > 0 && (
+        <aside
+          className="absolute right-3 top-3 max-w-[18rem] rounded-md border border-[color:var(--app-border-strong)] bg-[var(--panel-background)] px-3 py-2 text-xs text-[var(--text-primary)] shadow-panel backdrop-blur-sm"
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <p className="font-[var(--font-display)] text-[11px] uppercase tracking-[0.18em] text-[var(--accent-primary)]">
+            Cinematic tour
+          </p>
+          <p className="mt-1 text-[var(--text-muted)]">
+            {tourStatus === "running" ? `Flying to ${activeTourStopName}` : tourStatus === "paused" ? "Paused" : "Ready"}
+          </p>
+          <button
+            type="button"
+            className="mt-2 rounded border border-[color:var(--app-border-strong)] px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-[var(--text-primary)] transition hover:border-[color:var(--accent-primary)] hover:text-[var(--accent-primary)]"
+            onClick={() => {
+              if (tourStatus === "running") {
+                stopTour("idle");
+                return;
+              }
+
+              startTour();
+            }}
+          >
+            {tourStatus === "running" ? "Stop tour" : "Start tour"}
+          </button>
+        </aside>
+      )}
+    </div>
   );
 }

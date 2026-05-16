@@ -190,6 +190,7 @@ export function CpoLiveMapClient() {
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [shiftPressed, setShiftPressed] = useState(false);
   const [isPricePanelOpen, setIsPricePanelOpen] = useState(true);
+  const [autoViewEnabled, setAutoViewEnabled] = useState(false);
 
   const mode = useStationEditorStore((state) => state.mode);
   const assetType = useStationEditorStore((state) => state.assetType);
@@ -219,6 +220,7 @@ export function CpoLiveMapClient() {
       selectStation(null);
     }
     if (mode !== "idle") {
+      setAutoViewEnabled(false);
       setSelectedStation(null);
       setSelectedTransformer(null);
       setSelectedEV(null);
@@ -486,6 +488,8 @@ export function CpoLiveMapClient() {
             onSelectEntity={handleSelectEntity}
             onMapClick={handleMapClick}
             onMapHover={handleMapHover}
+            autoViewEnabled={autoViewEnabled}
+            onAutoViewInterrupted={() => setAutoViewEnabled(false)}
             stations={displayStations}
             transformers={displayTransformers}
             snapToGrid={snapToGrid}
@@ -493,6 +497,36 @@ export function CpoLiveMapClient() {
         </div>
         <div className="pointer-events-none absolute inset-0 data-grid opacity-15" />
       </div>
+
+      <section className="absolute left-6 top-8 z-30 pointer-events-auto">
+        <button
+          type="button"
+          aria-pressed={autoViewEnabled}
+          aria-label={autoViewEnabled ? "Turn Auto View off" : "Turn Auto View on"}
+          onClick={() => setAutoViewEnabled((prev) => !prev)}
+          className={`flex min-w-[172px] items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left shadow-2xl transition-all duration-200 ${
+            autoViewEnabled
+              ? "border-primary/60 bg-primary/20 text-primary shadow-[0_0_24px_rgba(34,211,238,0.18)]"
+              : "border-outline-variant/40 bg-surface-container/70 text-on-surface hover:border-primary/50 hover:text-primary"
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[20px]">
+              {autoViewEnabled ? "pause_circle" : "play_circle"}
+            </span>
+            <span className="flex flex-col">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">Auto View</span>
+              <span className="font-label-md text-label-md">{autoViewEnabled ? "On" : "Off"}</span>
+            </span>
+          </span>
+          <span
+            className={`h-3 w-3 rounded-full ${
+              autoViewEnabled ? "bg-primary shadow-[0_0_12px_rgba(34,211,238,0.8)]" : "bg-outline-variant"
+            }`}
+            aria-hidden="true"
+          />
+        </button>
+      </section>
 
       {mode !== "idle" && (
         <section className="absolute left-6 top-24 z-40 w-[320px] rounded-xl glass-panel px-4 py-4 shadow-2xl border-cyan-glow pointer-events-auto">

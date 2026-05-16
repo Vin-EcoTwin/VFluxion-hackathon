@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Map as MapView, useControl } from "react-map-gl/maplibre";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Map as MapView, useControl, type MapRef, type ViewStateChangeEvent } from "react-map-gl/maplibre";
 import { MapboxOverlay, type MapboxOverlayProps } from "@deck.gl/mapbox";
 import {
   AmbientLight,
@@ -39,6 +39,17 @@ const INITIAL_VIEW_STATE: MapViewState = {
   zoom: 13,
   pitch: 45,
   bearing: 0
+};
+
+const AUTO_VIEW_FIT_DURATION_MS = 2600;
+const AUTO_VIEW_ORBIT_PITCH = 52;
+const AUTO_VIEW_ORBIT_MAX_ZOOM = 14.35;
+const AUTO_VIEW_ORBIT_PADDING = 120;
+const AUTO_VIEW_ORBIT_DEGREES_PER_SECOND = 15;
+
+type AutoViewBounds = {
+  center: [number, number];
+  bounds: [[number, number], [number, number]];
 };
 
 const DATA_URLS = {
@@ -237,6 +248,51 @@ function buildFlowTrips(links: StationFlowLink[]): Record<SpeedGroup, FlowTrip[]
   return grouped;
 }
 
+function buildAutoViewBounds(
+  stations: ChargingStation[],
+  transformers: TransformerEntity[]
+): AutoViewBounds {
+  // To hardcode an art-directed overview instead, return your preferred center and bounds here:
+  // return { center: [-74.0, 40.75], bounds: [[-74.03, 40.70], [-73.93, 40.88]] };
+  const positions = [
+    ...stations.map((station) => station.position),
+    ...transformers.map((transformer) => transformer.position),
+    ...MOCK_EVS.map((ev) => ev.position)
+  ];
+
+  if (positions.length === 0) {
+    return {
+      center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
+      bounds: MANHATTAN_BOUNDS
+    };
+  }
+
+  let minLng = positions[0][0];
+  let maxLng = positions[0][0];
+  let minLat = positions[0][1];
+  let maxLat = positions[0][1];
+
+  for (const [lng, lat] of positions) {
+    minLng = Math.min(minLng, lng);
+    maxLng = Math.max(maxLng, lng);
+    minLat = Math.min(minLat, lat);
+    maxLat = Math.max(maxLat, lat);
+  }
+
+  const lngSpan = Math.max(maxLng - minLng, 0.006);
+  const latSpan = Math.max(maxLat - minLat, 0.006);
+  const lngPadding = lngSpan * 0.22;
+  const latPadding = latSpan * 0.22;
+
+  return {
+    center: [(minLng + maxLng) / 2, (minLat + maxLat) / 2],
+    bounds: [
+      [minLng - lngPadding, minLat - latPadding],
+      [maxLng + lngPadding, maxLat + latPadding]
+    ]
+  };
+}
+
 function useParticleAnimation(speed = 6) {
   const [currentTime, setCurrentTime] = useState(0);
 
@@ -271,6 +327,8 @@ type TripsLiveMapProps = {
   onSelectEntity?: (entity: any) => void;
   onMapClick?: (info: MapClickInfo) => void;
   onMapHover?: (info: MapClickInfo | null) => void;
+  autoViewEnabled?: boolean;
+  onAutoViewInterrupted?: () => void;
   stations?: ChargingStation[];
   transformers?: TransformerEntity[];
   snapToGrid?: boolean;
@@ -281,6 +339,8 @@ export function TripsLiveMap({
   onSelectEntity,
   onMapClick,
   onMapHover,
+  autoViewEnabled = false,
+  onAutoViewInterrupted,
   stations,
   transformers,
   snapToGrid = false,
@@ -288,6 +348,11 @@ export function TripsLiveMap({
 }: TripsLiveMapProps) {
   const resolvedStations = stations ?? CHARGING_STATIONS;
   const resolvedTransformers = transformers ?? TRANSFORMERS;
+  const mapRef = useRef<MapRef | null>(null);
+  const autoViewFitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoViewFrameRef = useRef<number | null>(null);
+  const autoViewRunIdRef = useRef(0);
+  const [mapReady, setMapReady] = useState(false);
   const STATION_MODEL_URL = "/models/charge_point.glb";
   const TRANSFORMER_MODEL_URL = "/models/transformer.glb";
   // Tạm thời trỏ ev-model sang charge_point để chứng minh layer code đã hoạt động chuẩn
@@ -317,6 +382,119 @@ export function TripsLiveMap({
   const currentTime = useParticleAnimation(8);
 
   const [buildingData, setBuildingData] = useState<Building[]>([]);
+  const autoViewBounds = useMemo(
+    () => buildAutoViewBounds(resolvedStations, resolvedTransformers),
+    [resolvedStations, resolvedTransformers]
+  );
+
+  const clearAutoViewTimers = useCallback(() => {
+    if (autoViewFitTimeoutRef.current) {
+      clearTimeout(autoViewFitTimeoutRef.current);
+      autoViewFitTimeoutRef.current = null;
+    }
+
+    if (autoViewFrameRef.current) {
+      cancelAnimationFrame(autoViewFrameRef.current);
+      autoViewFrameRef.current = null;
+    }
+  }, []);
+
+  const stopAutoView = useCallback(() => {
+    autoViewRunIdRef.current += 1;
+    clearAutoViewTimers();
+    mapRef.current?.stop();
+  }, [clearAutoViewTimers]);
+
+  const startPanoramicOrbit = useCallback(
+    (runId: number) => {
+      const map = mapRef.current;
+      if (!map || autoViewRunIdRef.current !== runId) {
+        return;
+      }
+
+      const startedAt = performance.now();
+      const startBearing = map.getBearing();
+
+      const animate = (now: number) => {
+        if (autoViewRunIdRef.current !== runId) {
+          return;
+        }
+
+        const elapsedSeconds = (now - startedAt) / 1000;
+        map.jumpTo({
+          center: autoViewBounds.center,
+          pitch: AUTO_VIEW_ORBIT_PITCH,
+          bearing: startBearing + elapsedSeconds * AUTO_VIEW_ORBIT_DEGREES_PER_SECOND
+        });
+
+        autoViewFrameRef.current = requestAnimationFrame(animate);
+      };
+
+      autoViewFrameRef.current = requestAnimationFrame(animate);
+    },
+    [autoViewBounds.center]
+  );
+
+  useEffect(() => {
+    if (!autoViewEnabled) {
+      stopAutoView();
+      return;
+    }
+
+    const map = mapRef.current;
+    if (!mapReady || !map) {
+      return;
+    }
+
+    const runId = autoViewRunIdRef.current + 1;
+    autoViewRunIdRef.current = runId;
+    clearAutoViewTimers();
+
+    map.fitBounds(autoViewBounds.bounds, {
+      padding: AUTO_VIEW_ORBIT_PADDING,
+      duration: AUTO_VIEW_FIT_DURATION_MS,
+      pitch: AUTO_VIEW_ORBIT_PITCH,
+      bearing: map.getBearing(),
+      maxZoom: AUTO_VIEW_ORBIT_MAX_ZOOM,
+      essential: true
+    });
+
+    autoViewFitTimeoutRef.current = setTimeout(() => {
+      startPanoramicOrbit(runId);
+    }, AUTO_VIEW_FIT_DURATION_MS);
+
+    return clearAutoViewTimers;
+  }, [
+    autoViewBounds,
+    autoViewEnabled,
+    clearAutoViewTimers,
+    mapReady,
+    startPanoramicOrbit,
+    stopAutoView
+  ]);
+
+  useEffect(
+    () => () => {
+      stopAutoView();
+    },
+    [stopAutoView]
+  );
+
+  const handleAutoViewUserInterruption = useCallback(
+    (event?: ViewStateChangeEvent) => {
+      if (!autoViewEnabled) {
+        return;
+      }
+
+      if (event && !event.originalEvent) {
+        return;
+      }
+
+      stopAutoView();
+      onAutoViewInterrupted?.();
+    },
+    [autoViewEnabled, onAutoViewInterrupted, stopAutoView]
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -533,7 +711,7 @@ export function TripsLiveMap({
   // ---------------------------------------------------------------------------
   // Click handler
   // ---------------------------------------------------------------------------
-  const snapCoordinate = (coord: [number, number]) => {
+  const snapCoordinate = (coord: [number, number]): [number, number] => {
     if (!snapToGrid) return coord;
     const step = gridStep > 0 ? gridStep : 0.00005;
     return [
@@ -574,6 +752,7 @@ export function TripsLiveMap({
 
   return (
     <MapView
+      ref={mapRef}
       reuseMaps
       mapStyle={MAP_STYLE}
       maxBounds={MANHATTAN_BOUNDS}
@@ -581,6 +760,13 @@ export function TripsLiveMap({
       maxZoom={20}
       minZoom={10}
       maxPitch={85}
+      onLoad={() => setMapReady(true)}
+      onMouseDown={() => handleAutoViewUserInterruption()}
+      onTouchStart={() => handleAutoViewUserInterruption()}
+      onDragStart={handleAutoViewUserInterruption}
+      onZoomStart={handleAutoViewUserInterruption}
+      onRotateStart={handleAutoViewUserInterruption}
+      onPitchStart={handleAutoViewUserInterruption}
     >
       <DeckGLOverlay
         layers={layers}
