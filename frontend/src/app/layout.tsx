@@ -1,22 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk, Manrope } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter"
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-space-grotesk"
-});
-
-const manrope = Manrope({
-  subsets: ["latin"],
-  variable: "--font-manrope"
-});
 
 export const metadata: Metadata = {
   title: "V-fluxion — Bidirectional Energy Intelligence",
@@ -38,7 +22,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${inter.variable} ${spaceGrotesk.variable} ${manrope.variable} antialiased`}
+        className="antialiased"
       >
         {children}
       </body>
