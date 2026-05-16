@@ -1,0 +1,45 @@
+name: vfluxion-frontend
+region: sgp
+features:
+  - buildpack-stack=ubuntu-22
+services:
+  - name: web
+    environment_slug: node-js
+    source_dir: /
+    build_command: npm ci && npm run build
+    run_command: npm start
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    envs:
+      - key: PORT
+        value: "8080"
+        scope: RUN_TIME
+      - key: HOSTNAME
+        value: "0.0.0.0"
+        scope: RUN_TIME
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+        scope: RUN_AND_BUILD_TIME
+      # Set these only when a production backend exists. NEXT_PUBLIC_* values are baked into the client bundle.
+      - key: NEXT_PUBLIC_API_BASE_URL
+        value: "https://api.example.com/api/v1"
+        scope: BUILD_TIME
+      - key: NEXT_PUBLIC_WS_URL
+        value: "wss://api.example.com/ws/realtime"
+        scope: BUILD_TIME
+    health_check:
+      initial_delay_seconds: 30
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 5
+      http_path: /api/health
+      port: 8080
+ingress:
+  rules:
+    - component:
+        name: web
+      match:
+        path:
+          prefix: /

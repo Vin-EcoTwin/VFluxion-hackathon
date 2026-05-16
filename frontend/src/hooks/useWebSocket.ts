@@ -13,6 +13,11 @@ export function useWebSocket() {
   useEffect(() => {
     const socket = createRealtimeSocket();
 
+    if (!socket) {
+      logger.info("Realtime socket disabled: NEXT_PUBLIC_WS_URL is not configured");
+      return;
+    }
+
     socket.onmessage = (message) => {
       try {
         const payload = JSON.parse(message.data) as RealtimeEnvelope;

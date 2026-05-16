@@ -1,18 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Inter, Manrope } from "next/font/google";
 import { useRouter } from "next/navigation";
-
-const manropeFont = Manrope({
-  subsets: ["latin"],
-  variable: "--font-h1"
-});
-
-const interFont = Inter({
-  subsets: ["latin"],
-  variable: "--font-body-md"
-});
 
 export default function LoginPage() {
   const [role, setRole] = useState<"EV" | "CPO">("EV");
@@ -28,7 +17,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={`light bg-background min-h-screen flex text-on-background font-body-md antialiased selection:bg-primary-container selection:text-on-primary-container ${manropeFont.variable} ${interFont.variable}`}>
+    <div className="light bg-background min-h-screen flex text-on-background font-body-md antialiased selection:bg-primary-container selection:text-on-primary-container">
       <div className="flex-1 flex flex-col md:flex-row w-full">
         {/* Left Side: Login Form */}
         <div className="w-full md:w-[45%] flex flex-col justify-center px-container-padding py-xl bg-surface-container-lowest z-10 shadow-[0px_4px_20px_rgba(0,0,0,0.04)] relative">
