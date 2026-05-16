@@ -339,7 +339,7 @@ export function TripsLiveMap({
   onSelectEntity,
   onMapClick,
   onMapHover,
-  autoViewEnabled = false,
+  autoViewEnabled = true,
   onAutoViewInterrupted,
   stations,
   transformers,
