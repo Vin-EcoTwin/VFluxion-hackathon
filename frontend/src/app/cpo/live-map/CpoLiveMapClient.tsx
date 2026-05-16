@@ -190,7 +190,7 @@ export function CpoLiveMapClient() {
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [shiftPressed, setShiftPressed] = useState(false);
   const [isPricePanelOpen, setIsPricePanelOpen] = useState(true);
-  const [autoViewEnabled, setAutoViewEnabled] = useState(false);
+  const [autoViewEnabled, setAutoViewEnabled] = useState(true);
 
   const mode = useStationEditorStore((state) => state.mode);
   const assetType = useStationEditorStore((state) => state.assetType);
