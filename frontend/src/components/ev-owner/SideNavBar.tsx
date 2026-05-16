@@ -4,7 +4,7 @@ export function SideNavBar() {
   return (
     <aside className="hidden md:flex flex-col h-full w-64 bg-white border-r border-outline-variant/30 py-md z-50">
       <div className="px-6 mb-10">
-        <img src="/images/logo.png" alt="V-fluxion Logo" className="h-10 w-auto" />
+        <img src="/images/vfluxion-logo-frontend.png" alt="V-fluxion Logo" className="h-10 w-auto" />
         <p className="font-label-caps text-label-caps text-primary/60 mt-1 uppercase tracking-widest">Bidirectional Energy</p>
       </div>
       

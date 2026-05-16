@@ -7,6 +7,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -27,9 +28,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.logoContainer}>
-        <View style={styles.logoIcon}>
-          <MaterialIcons name="bolt" size={40} color={colors.onPrimary} />
-        </View>
+        <Image
+          source={require('../../assets/vfluxion-logo-mobile.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
         <Text style={styles.title}>VFluxion GridFlow</Text>
         <Text style={styles.subtitle}>EV Owner Dashboard</Text>
       </View>
@@ -86,13 +89,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
-  logoIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: colors.primaryContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: 96,
+    height: 96,
     marginBottom: spacing.md,
   },
   title: {

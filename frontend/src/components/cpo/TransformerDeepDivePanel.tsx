@@ -68,8 +68,8 @@ export function TransformerDeepDivePanel({
   }, [history]);
 
   return (
-    <div className="absolute right-container-margin top-[calc(64px+32px)] bottom-container-margin w-[420px] z-30 flex flex-col gap-widget-gap pointer-events-auto">
-      <div className={`glass-panel rounded-xl p-md flex justify-between items-start ${styles.glow}`}>
+    <div className="absolute right-container-margin top-[calc(64px+32px)] bottom-container-margin w-[420px] z-30 flex flex-col pointer-events-auto">
+      <div className={`glass-panel rounded-xl p-md flex justify-between items-start flex-shrink-0 mb-3 ${styles.glow}`}>
         <div className="flex items-start gap-sm">
           <span className="material-symbols-outlined text-primary">electrical_services</span>
           <div>
@@ -90,143 +90,145 @@ export function TransformerDeepDivePanel({
         </button>
       </div>
 
-      <section className="glass-panel rounded-xl p-md flex flex-col gap-sm">
-        <div className="flex items-center justify-between">
-          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Load factor</span>
-          <span className={`font-data-mono text-sm ${styles.text}`}>{loadPct}%</span>
-        </div>
-        <div className="w-full h-2 rounded-full bg-surface-variant/40">
-          <div className={`${styles.bar} h-2 rounded-full`} style={{ width: `${Math.min(100, Math.max(0, loadPct))}%` }} />
-        </div>
-        <div className="flex justify-between text-[11px] text-on-surface-variant">
-          <span>Net Power</span>
-          <span className="text-on-surface">
-            <span className={data.minCapacityKw !== undefined && telemetry.netPower < data.minCapacityKw ? "text-red-400 font-bold" : ""}>
-              {formatKw(telemetry.netPower)}
-            </span>
-            {" / Max: "}{formatKw(data.maxCapacityKw)}
-            {data.minCapacityKw !== undefined && ` | Min: ${formatKw(data.minCapacityKw)}`}
-          </span>
-        </div>
-      </section>
-
-      <section className="glass-panel rounded-xl p-md flex flex-col gap-sm">
-        <div className="flex items-center justify-between">
-          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Aggregation Breakdown</span>
-          <span className="text-[10px] text-on-surface-variant">{data.stationIds.length} stations</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-on-surface-variant">Inflexible load (P^L)</span>
-          <span className="text-red-300">+{formatKw(telemetry.inflexibleLoad)}</span>
-        </div>
-        {telemetry.inflexibleLoadBreakdown && (
-          <div className="flex flex-col gap-1 pl-4 border-l border-outline-variant/30 mt-1 mb-2">
-             <div className="flex justify-between text-[11px] text-on-surface-variant">
-               <span>Residential (Home)</span>
-               <span className="text-red-300/80">+{formatKw(telemetry.inflexibleLoadBreakdown.residentialKw)}</span>
-             </div>
-             <div className="flex justify-between text-[11px] text-on-surface-variant">
-               <span>Industrial (Factory)</span>
-               <span className="text-red-300/80">+{formatKw(telemetry.inflexibleLoadBreakdown.industrialKw)}</span>
-             </div>
-          </div>
-        )}
-        <div className="flex justify-between text-sm">
-          <span className="text-on-surface-variant">EV load (P^EVs)</span>
-          <span className="text-amber-300">{telemetry.evLoad >= 0 ? "+" : ""}{formatKw(telemetry.evLoad)}</span>
-        </div>
-        {telemetry.evLoadBreakdown && (
-          <div className="flex flex-col gap-1 pl-4 border-l border-outline-variant/30 mt-1 mb-2">
-             <div className="flex justify-between text-[11px] text-on-surface-variant">
-               <span>Electric Cars</span>
-               <span className="text-amber-300/80">{telemetry.evLoadBreakdown.carsKw >= 0 ? "+" : ""}{formatKw(telemetry.evLoadBreakdown.carsKw)}</span>
-             </div>
-             <div className="flex justify-between text-[11px] text-on-surface-variant">
-               <span>Electric Trucks</span>
-               <span className="text-amber-300/80">{telemetry.evLoadBreakdown.trucksKw >= 0 ? "+" : ""}{formatKw(telemetry.evLoadBreakdown.trucksKw)}</span>
-             </div>
-             <div className="flex justify-between text-[11px] text-on-surface-variant mt-1 border-t border-outline-variant/20 pt-1">
-               <span className="italic text-error">V2G Degradation Cost (C_deg)</span>
-               <span className="text-error">${telemetry.evLoadBreakdown.degradationCost.toFixed(2)}</span>
-             </div>
-          </div>
-        )}
-        <div className="flex justify-between text-sm">
-          <span className="text-on-surface-variant">PV generation (P^PV)</span>
-          <span className="text-emerald-300">-{formatKw(telemetry.pvGeneration)}</span>
-        </div>
-        <div className="flex justify-between text-sm font-semibold border-t border-outline-variant/30 pt-2">
-          <span className="text-on-surface">Net power</span>
-          <span className="text-primary">{formatKw(telemetry.netPower)}</span>
-        </div>
-      </section>
-
-      {stations && stations.length > 0 && (
+      <div className="flex-1 overflow-y-auto pr-sm pb-sm -mr-sm flex flex-col gap-widget-gap custom-scrollbar">
         <section className="glass-panel rounded-xl p-md flex flex-col gap-sm">
-          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Connected Stations ({stations.length})</span>
-          <div className="flex flex-col gap-2 mt-1">
-            {stations.map(station => (
-              <div key={station.id} className="flex justify-between items-center bg-surface-variant/20 p-2 rounded-lg border border-outline-variant/20">
-                <div className="flex flex-col">
-                  <span className="text-xs text-on-surface font-semibold">{station.name}</span>
-                  <span className="text-[10px] text-on-surface-variant">{station.inUseStalls}/{station.activeStalls} stalls active</span>
-                </div>
-                <div className="text-xs text-primary font-data-mono">
-                  {(station.stalls.reduce((sum, stall) => sum + (stall.powerKw ?? 0), 0)) >= 0 ? "+" : ""}{formatKw(station.stalls.reduce((sum, stall) => sum + (stall.powerKw ?? 0), 0))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {drActive && (
-        <section className="glass-panel rounded-xl p-md border border-red-400/40 bg-red-950/20">
           <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-red-300">Demand response</span>
-            <span className="text-[10px] text-red-200">{data.drEvent?.label ?? "DR Event"}</span>
+            <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Load factor</span>
+            <span className={`font-data-mono text-sm ${styles.text}`}>{loadPct}%</span>
           </div>
-          <p className="mt-2 text-xs text-red-200">
-            Reduce capacity by {telemetry.drCapacityReduction}% for {data.drEvent?.minutesRemaining ?? 15} min.
-          </p>
+          <div className="w-full h-2 rounded-full bg-surface-variant/40">
+            <div className={`${styles.bar} h-2 rounded-full`} style={{ width: `${Math.min(100, Math.max(0, loadPct))}%` }} />
+          </div>
+          <div className="flex justify-between text-[11px] text-on-surface-variant">
+            <span>Net Power</span>
+            <span className="text-on-surface">
+              <span className={data.minCapacityKw !== undefined && telemetry.netPower < data.minCapacityKw ? "text-red-400 font-bold" : ""}>
+                {formatKw(telemetry.netPower)}
+              </span>
+              {" / Max: "}{formatKw(data.maxCapacityKw)}
+              {data.minCapacityKw !== undefined && ` | Min: ${formatKw(data.minCapacityKw)}`}
+            </span>
+          </div>
         </section>
-      )}
 
-      <section className="glass-panel rounded-xl p-md flex flex-col gap-sm">
-        <span className="text-xs uppercase tracking-wider text-on-surface-variant">Asset health</span>
-        <div className="flex justify-between text-sm">
-          <span className="text-on-surface-variant">Hot-spot temp</span>
-          <span className="text-on-surface">{data.health?.hotSpotTempC ?? 82} C</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-on-surface-variant">Loss of life</span>
-          <span className="text-on-surface">+{data.health?.lossOfLifeDailyPct ?? 0.02}% / day</span>
-        </div>
-      </section>
-
-      <section className="glass-panel rounded-xl p-md flex flex-col gap-sm">
-        <span className="text-xs uppercase tracking-wider text-on-surface-variant">Net power trend</span>
-        {history.length > 1 ? (
-          <div className="rounded-lg bg-surface-variant/30 p-2">
-            <svg viewBox="0 0 100 40" className="w-full h-20">
-              <polyline
-                points={sparkline}
-                fill="none"
-                stroke="#22d3ee"
-                strokeWidth="2"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="mt-2 flex justify-between text-[10px] text-on-surface-variant">
-              <span>{history[0].time}</span>
-              <span>{history[history.length - 1].time}</span>
-            </div>
+        <section className="glass-panel rounded-xl p-md flex flex-col gap-sm">
+          <div className="flex items-center justify-between">
+            <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Aggregation Breakdown</span>
+            <span className="text-[10px] text-on-surface-variant">{data.stationIds.length} stations</span>
           </div>
-        ) : (
-          <p className="text-xs text-on-surface-variant">No history yet.</p>
+          <div className="flex justify-between text-sm">
+            <span className="text-on-surface-variant">Inflexible load (P^L)</span>
+            <span className="text-red-300">+{formatKw(telemetry.inflexibleLoad)}</span>
+          </div>
+          {telemetry.inflexibleLoadBreakdown && (
+            <div className="flex flex-col gap-1 pl-4 border-l border-outline-variant/30 mt-1 mb-2">
+              <div className="flex justify-between text-[11px] text-on-surface-variant">
+                <span>Residential (Home)</span>
+                <span className="text-red-300/80">+{formatKw(telemetry.inflexibleLoadBreakdown.residentialKw)}</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-on-surface-variant">
+                <span>Industrial (Factory)</span>
+                <span className="text-red-300/80">+{formatKw(telemetry.inflexibleLoadBreakdown.industrialKw)}</span>
+              </div>
+            </div>
+          )}
+          <div className="flex justify-between text-sm">
+            <span className="text-on-surface-variant">EV load (P^EVs)</span>
+            <span className="text-amber-300">{telemetry.evLoad >= 0 ? "+" : ""}{formatKw(telemetry.evLoad)}</span>
+          </div>
+          {telemetry.evLoadBreakdown && (
+            <div className="flex flex-col gap-1 pl-4 border-l border-outline-variant/30 mt-1 mb-2">
+              <div className="flex justify-between text-[11px] text-on-surface-variant">
+                <span>Electric Cars</span>
+                <span className="text-amber-300/80">{telemetry.evLoadBreakdown.carsKw >= 0 ? "+" : ""}{formatKw(telemetry.evLoadBreakdown.carsKw)}</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-on-surface-variant">
+                <span>Electric Trucks</span>
+                <span className="text-amber-300/80">{telemetry.evLoadBreakdown.trucksKw >= 0 ? "+" : ""}{formatKw(telemetry.evLoadBreakdown.trucksKw)}</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-on-surface-variant mt-1 border-t border-outline-variant/20 pt-1">
+                <span className="italic text-error">V2G Degradation Cost (C_deg)</span>
+                <span className="text-error">${telemetry.evLoadBreakdown.degradationCost.toFixed(2)}</span>
+              </div>
+            </div>
+          )}
+          <div className="flex justify-between text-sm">
+            <span className="text-on-surface-variant">PV generation (P^PV)</span>
+            <span className="text-emerald-300">-{formatKw(telemetry.pvGeneration)}</span>
+          </div>
+          <div className="flex justify-between text-sm font-semibold border-t border-outline-variant/30 pt-2">
+            <span className="text-on-surface">Net power</span>
+            <span className="text-primary">{formatKw(telemetry.netPower)}</span>
+          </div>
+        </section>
+
+        {stations && stations.length > 0 && (
+          <section className="glass-panel rounded-xl p-md flex flex-col gap-sm">
+            <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Connected Stations ({stations.length})</span>
+            <div className="flex flex-col gap-2 mt-1">
+              {stations.map(station => (
+                <div key={station.id} className="flex justify-between items-center bg-surface-variant/20 p-2 rounded-lg border border-outline-variant/20">
+                  <div className="flex flex-col">
+                    <span className="text-xs text-on-surface font-semibold">{station.name}</span>
+                    <span className="text-[10px] text-on-surface-variant">{station.inUseStalls}/{station.activeStalls} stalls active</span>
+                  </div>
+                  <div className="text-xs text-primary font-data-mono">
+                    {(station.stalls.reduce((sum, stall) => sum + (stall.powerKw ?? 0), 0)) >= 0 ? "+" : ""}{formatKw(station.stalls.reduce((sum, stall) => sum + (stall.powerKw ?? 0), 0))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
-      </section>
+
+        {drActive && (
+          <section className="glass-panel rounded-xl p-md border border-red-400/40 bg-red-950/20">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider text-red-300">Demand response</span>
+              <span className="text-[10px] text-red-200">{data.drEvent?.label ?? "DR Event"}</span>
+            </div>
+            <p className="mt-2 text-xs text-red-200">
+              Reduce capacity by {telemetry.drCapacityReduction}% for {data.drEvent?.minutesRemaining ?? 15} min.
+            </p>
+          </section>
+        )}
+
+        <section className="glass-panel rounded-xl p-md flex flex-col gap-sm">
+          <span className="text-xs uppercase tracking-wider text-on-surface-variant">Asset health</span>
+          <div className="flex justify-between text-sm">
+            <span className="text-on-surface-variant">Hot-spot temp</span>
+            <span className="text-on-surface">{data.health?.hotSpotTempC ?? 82} C</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-on-surface-variant">Loss of life</span>
+            <span className="text-on-surface">+{data.health?.lossOfLifeDailyPct ?? 0.02}% / day</span>
+          </div>
+        </section>
+
+        <section className="glass-panel rounded-xl p-md flex flex-col gap-sm">
+          <span className="text-xs uppercase tracking-wider text-on-surface-variant">Net power trend</span>
+          {history.length > 1 ? (
+            <div className="rounded-lg bg-surface-variant/30 p-2">
+              <svg viewBox="0 0 100 40" className="w-full h-20">
+                <polyline
+                  points={sparkline}
+                  fill="none"
+                  stroke="#22d3ee"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="mt-2 flex justify-between text-[10px] text-on-surface-variant">
+                <span>{history[0].time}</span>
+                <span>{history[history.length - 1].time}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-on-surface-variant">No history yet.</p>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

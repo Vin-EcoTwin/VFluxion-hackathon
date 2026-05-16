@@ -4,7 +4,7 @@ export function TopNavBar() {
   return (
     <header className="bg-white border-b border-outline-variant/30 shadow-sm sticky top-0 z-50 flex justify-between items-center w-full px-8 py-4">
       <div className="flex items-center gap-8">
-        <img src="/images/logo.png" alt="V-fluxion Logo" className="h-8 w-auto" />
+        <img src="/images/vfluxion-logo-frontend.png" alt="V-fluxion Logo" className="h-8 w-auto" />
         <nav className="hidden lg:flex gap-6 items-center">
           <Link href="#" className="text-on-surface-variant hover:text-primary transition-colors duration-200 font-body-md">Technology</Link>
           <Link href="/ev-owner/dashboard" className="text-primary font-bold border-b-2 border-primary pb-1 font-body-md">EV Owners</Link>
