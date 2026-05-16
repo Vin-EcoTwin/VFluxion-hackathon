@@ -35,7 +35,7 @@ export default function LoginPage() {
           <div className="max-w-md w-full mx-auto space-y-xl">
             {/* Branding */}
             <div className="text-left space-y-sm">
-              <img alt="V-fluxion Logo" className="h-10 w-auto mb-lg" src="/images/logo.png" />
+              <img alt="V-fluxion Logo" className="h-10 w-auto mb-lg" src="/images/vfluxion-logo-frontend.png" />
               <h1 className="font-h1 text-[40px] font-bold text-primary tracking-tight">Welcome Back</h1>
               <p className="font-body-lg text-[18px] text-on-surface-variant">Sign in to manage your energy network or charging sessions.</p>
             </div>

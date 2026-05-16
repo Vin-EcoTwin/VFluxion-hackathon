@@ -12,7 +12,7 @@ export function TopAppBar() {
   return (
     <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20 shadow-sm flex justify-between items-center h-16 px-container-margin">
       <div className="flex items-center gap-xl">
-        <img src="/images/logo.png" alt="V-fluxion Logo" className="h-16 w-auto brightness-0 invert" />
+        <img src="/images/vfluxion-logo-frontend.png" alt="V-fluxion Logo" className="h-16 w-auto brightness-0 invert" />
 
         {/* Top Nav Links (Desktop) */}
         <nav className="hidden md:flex gap-lg">
