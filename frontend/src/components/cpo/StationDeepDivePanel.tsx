@@ -78,7 +78,7 @@ export function StationDeepDivePanel({ onClose, data, onSelectEV }: { onClose: (
                     {isDischarging ? 'Discharging' : 'Charging'}
                   </span>
                   <span className={`font-data-mono text-[14px] mt-1 ${isDischarging ? 'text-secondary' : 'text-primary'}`}>
-                    {stall.powerKw > 0 ? `+${stall.powerKw}` : stall.powerKw} kW
+                    {(stall.powerKw ?? 0) > 0 ? `+${stall.powerKw ?? 0}` : stall.powerKw ?? 0} kW
                   </span>
                 </button>
               );
